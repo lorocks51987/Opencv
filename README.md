@@ -28,7 +28,7 @@ Coleção de projetos de reconhecimento de gestos com as mãos usando visão com
 
 ```bash
 # Clone o repositório
-git clone <seu-repositorio>
+git clone https://github.com/lorocks51987/Opencv.git
 cd hands
 
 # Instalar dependências
