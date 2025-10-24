@@ -98,7 +98,7 @@ class handDetector:
 def main():
     pTime = 0
     cTime = 0
-    cap = cv2.VideoCapture(0)  # Ajuste a câmera se precisar
+    cap = cv2.VideoCapture(1)  # Ajuste a câmera se precisar
     detector = handDetector()
 
     cv2.namedWindow("Hand Tracker", cv2.WINDOW_NORMAL)
