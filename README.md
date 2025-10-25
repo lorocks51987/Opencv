@@ -16,7 +16,6 @@ Projetos de reconhecimento de gestos com as mãos e jogos simples usando visão 
 ### 🐍 Snake Donuts
 - Cobra que come **donuts** na tela
 - Controles com a mão usando `HandDetector`
-- Rastro colorido e partículas quando come donuts
 
 ### 🖱️ Exemplos
 - `examples/control_mouse.py` - Controle do mouse com gestos
