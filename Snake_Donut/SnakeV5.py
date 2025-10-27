@@ -23,15 +23,16 @@ CAMINHO_FONTE = "arial.ttf"
 # Configurações dos Itens
 TAMANHO_MACA = 75
 TAMANHO_DONUT = 75
-TAMANHO_POTION = 75
-TAMANHO_COIN = 70                # Moeda maior para melhor visibilidade
-TAMANHO_GHOST = 60               # Fantasma
+TAMANHO_POTION = 80
+TAMANHO_COIN = 90            # Moeda maior para melhor visibilidade
+TAMANHO_GHOST = 75               # Fantasma
 ARQUIVO_MACA = "enchanted_apple.gif"
 ARQUIVO_DONUT = "donut.png"
 ARQUIVO_POTION = "Potion.png"
 ARQUIVO_COIN = "coin.png"            # NOVO
 ARQUIVO_GHOST1 = "ghost1.png"        # Fantasma olhando para esquerda
 ARQUIVO_GHOST2 = "ghost2.png"        # Fantasma olhando para direita
+ARQUIVO_GHOST3 = "ghost3.png"        # <-- [NOVO] Fantasma vulnerável (estilo Pac-Man)
 ARQUIVO_HIGHSCORE = "highscore.txt"
 
 # Configurações do Jogo
@@ -39,6 +40,7 @@ COMPRIMENTO_INICIAL = 150
 PONTOS_POR_COMIDA = 1
 PONTOS_POR_MACA = 2
 PONTOS_POR_COIN = 10               # Moeda vale 10 pontos
+PONTOS_POR_GHOST = 15              # Pontos por comer um fantasma
 CRESCIMENTO_POR_COMIDA = 30
 SCORE_PARA_MACA = 10               # Maçã aparece após 10 pontos
 SCORE_PARA_POTION = 20             # Poção aparece após 20 pontos
@@ -51,7 +53,7 @@ DURACAO_GHOST_S = 5                # Fantasma persegue por 5 segundos
 DURACAO_MACA_S = 10                # Maçã desaparece em 10 segundos
 DURACAO_POTION_S = 8               # Poção desaparece em 8 segundos
 DURACAO_COIN_S = 6                 # Moeda desaparece em 6 segundos
-VELOCIDADE_GHOST = 2               # Velocidade do fantasma
+VELOCIDADE_GHOST = 4              # Velocidade do fantasma
 MARGEM_SPAWN = 100
 
 # Configurações da Cobra
@@ -136,7 +138,6 @@ class SnakeGame:
             self.hPotion, self.wPotion, _ = self.imgPotion.shape
         except Exception as e:
             print(f"Erro ao carregar {ARQUIVO_POTION}: {e}")
-            # Fallback (círculo azul) se a imagem falhar
             self.imgPotion = np.zeros((TAMANHO_POTION, TAMANHO_POTION, 4), dtype=np.uint8)
             cv2.circle(self.imgPotion, (TAMANHO_POTION // 2, TAMANHO_POTION // 2), 35, (255, 0, 0, 255), -1) 
             self.hPotion, self.wPotion = TAMANHO_POTION, TAMANHO_POTION
@@ -152,7 +153,6 @@ class SnakeGame:
             self.hCoin, self.wCoin, _ = self.imgCoin.shape
         except Exception as e:
             print(f"Erro ao carregar {ARQUIVO_COIN}: {e}")
-            # Fallback (círculo dourado) se a imagem falhar
             self.imgCoin = np.zeros((TAMANHO_COIN, TAMANHO_COIN, 4), dtype=np.uint8)
             cv2.circle(self.imgCoin, (TAMANHO_COIN // 2, TAMANHO_COIN // 2), 20, (0, 255, 255, 255), -1)
             self.hCoin, self.wCoin = TAMANHO_COIN, TAMANHO_COIN
@@ -168,7 +168,6 @@ class SnakeGame:
             self.hGhost1, self.wGhost1, _ = self.imgGhost1.shape
         except Exception as e:
             print(f"Erro ao carregar {ARQUIVO_GHOST1}: {e}")
-            # Fallback (círculo cinza) se a imagem falhar
             self.imgGhost1 = np.zeros((TAMANHO_GHOST, TAMANHO_GHOST, 4), dtype=np.uint8)
             cv2.circle(self.imgGhost1, (TAMANHO_GHOST // 2, TAMANHO_GHOST // 2), 25, (128, 128, 128, 255), -1)
             self.hGhost1, self.wGhost1 = TAMANHO_GHOST, TAMANHO_GHOST
@@ -179,11 +178,23 @@ class SnakeGame:
             self.hGhost2, self.wGhost2, _ = self.imgGhost2.shape
         except Exception as e:
             print(f"Erro ao carregar {ARQUIVO_GHOST2}: {e}")
-            # Fallback (círculo cinza) se a imagem falhar
             self.imgGhost2 = np.zeros((TAMANHO_GHOST, TAMANHO_GHOST, 4), dtype=np.uint8)
             cv2.circle(self.imgGhost2, (TAMANHO_GHOST // 2, TAMANHO_GHOST // 2), 25, (128, 128, 128, 255), -1)
             self.hGhost2, self.wGhost2 = TAMANHO_GHOST, TAMANHO_GHOST
         
+        # --- [NOVO] Carregar fantasma vulnerável ---
+        try:
+            self.imgGhost3 = cv2.imread(ARQUIVO_GHOST3, cv2.IMREAD_UNCHANGED)
+            self.imgGhost3 = cv2.resize(self.imgGhost3, (TAMANHO_GHOST, TAMANHO_GHOST))
+            self.hGhost3, self.wGhost3, _ = self.imgGhost3.shape
+        except Exception as e:
+            print(f"Erro ao carregar {ARQUIVO_GHOST3}: {e}")
+            # Fallback (círculo azul) se a imagem falhar
+            self.imgGhost3 = np.zeros((TAMANHO_GHOST, TAMANHO_GHOST, 4), dtype=np.uint8)
+            cv2.circle(self.imgGhost3, (TAMANHO_GHOST // 2, TAMANHO_GHOST // 2), 25, (255, 0, 0, 255), -1)
+            self.hGhost3, self.wGhost3 = TAMANHO_GHOST, TAMANHO_GHOST
+        # --- [FIM NOVO] ---
+
         self.ghost_active = False
         self.ghost_pos = (0, 0)
         self.ghost_timer = 0
@@ -343,33 +354,28 @@ class SnakeGame:
             imgMain = cvzone.overlayPNG(imgMain, food, (fx - wFoodScaled // 2, fy - hFoodScaled // 2))
 
         # Spawn maçã
-        # Só spawna se outros itens não estiverem ativos
         if not self.apple_active and not self.coin_active and not self.potion_active and self.score >= SCORE_PARA_MACA:
             if random.randint(0, CHANCE_MACA_SPAWN) == 1:
                 self.spawnApple()
         
         # Spawn poção
-        # Só spawna se a maçã, moeda ou outra poção não estiverem ativas
         if not self.potion_active and not self.apple_active and not self.coin_active and self.score >= SCORE_PARA_POTION:
             if random.randint(0, CHANCE_POTION_SPAWN) == 1:
                 self.spawnPotion()
         
         # Spawn moeda (NOVO)
-        # Só spawna se outros itens não estiverem ativos
         if not self.coin_active and not self.apple_active and not self.potion_active and self.score >= SCORE_PARA_COIN:
             if random.randint(0, CHANCE_COIN_SPAWN) == 1:
                 self.spawnCoin()
 
         # Maçã animada
         if self.apple_active and num_apple_frames > 0:
-            # Verifica se a maçã expirou
             elapsed_apple = time.time() - self.apple_timer
             if elapsed_apple > DURACAO_MACA_S:
                 self.apple_active = False
             else:
                 frame = apple_frames[self.apple_frame_index]
                 self.apple_frame_index = (self.apple_frame_index + 1) % num_apple_frames
-                
                 frame_cv = cv2.cvtColor(np.array(frame), cv2.COLOR_RGBA2BGRA)
                 ax, ay = self.apple_pos
                 imgMain = cvzone.overlayPNG(imgMain, frame_cv, (ax - TAMANHO_MACA // 2, ay - TAMANHO_MACA // 2))
@@ -384,110 +390,127 @@ class SnakeGame:
 
         # Poção
         if self.potion_active:
-            # Verifica se a poção expirou
             elapsed_potion = time.time() - self.potion_timer
             if elapsed_potion > DURACAO_POTION_S:
                 self.potion_active = False
             else:
                 px, py = self.potion_pos
-                # Desenha a poção
                 imgMain = cvzone.overlayPNG(imgMain, self.imgPotion, (px - self.wPotion // 2, py - self.hPotion // 2))
-
-                # Colisão Poção
-                hx, hy = self.points[-1] # Pega a cabeça da cobra
+                hx, hy = self.points[-1] 
                 if abs(hx - px) < RAIO_COLISAO_COMIDA and abs(hy - py) < RAIO_COLISAO_COMIDA:
-                    self.potion_active = False # Poção desaparece
-                    
-                    # --- LÓGICA DE DIMINUIR A COBRA ---
+                    self.potion_active = False 
                     self.allowed_length = int(self.allowed_length / 2)
-                    
-                    # Garante que a cobra não fique menor que o tamanho inicial
                     if self.allowed_length < COMPRIMENTO_INICIAL:
                         self.allowed_length = COMPRIMENTO_INICIAL
-                    # -----------------------------------
 
         # Moeda
         if self.coin_active:
-            # Verifica se a moeda expirou
             elapsed_coin = time.time() - self.coin_timer
             if elapsed_coin > DURACAO_COIN_S:
                 self.coin_active = False
             else:
-                cx, cy = self.coin_pos
-                # Desenha a moeda (sem efeito de escala para evitar erros)
-                imgMain = cvzone.overlayPNG(imgMain, self.imgCoin, (cx - self.wCoin // 2, cy - self.hCoin // 2))
+                cx_coin, cy_coin = self.coin_pos # <-- [ALTERADO] Mudei nome da var para não conflitar com 'cx, cy' da cobra
+                imgMain = cvzone.overlayPNG(imgMain, self.imgCoin, (cx_coin - self.wCoin // 2, cy_coin - self.hCoin // 2))
 
-                # Colisão Moeda
                 hx, hy = self.points[-1]
-                if abs(hx - cx) < RAIO_COLISAO_COMIDA and abs(hy - cy) < RAIO_COLISAO_COMIDA:
+                if abs(hx - cx_coin) < RAIO_COLISAO_COMIDA and abs(hy - cy_coin) < RAIO_COLISAO_COMIDA:
                     self.coin_active = False
                     self.score += PONTOS_POR_COIN
-                    # Spawna fantasma quando pegar moeda
                     self.spawnGhost()
 
         # Fantasma (NOVO)
         if self.ghost_active:
-            # Verifica se o fantasma ainda está ativo (tempo limite)
             elapsed_ghost = time.time() - self.ghost_timer
             if elapsed_ghost > DURACAO_GHOST_S:
                 self.ghost_active = False
             else:
-                # Lógica de perseguição do fantasma
                 gx, gy = self.ghost_pos
-                hx, hy = self.points[-1]  # Posição da cabeça da cobra
+                hx, hy = self.points[-1]  
                 
-                # Calcula direção para a cobra
+                # --- [LÓGICA DE MOVIMENTO DO FANTASMA] ---
+                # O fantasma foge se o powerup estiver ativo, e persegue se não estiver
+                
+                # Calcula direção
                 dx = hx - gx
                 dy = hy - gy
                 distance = math.sqrt(dx*dx + dy*dy)
-                
+
                 if distance > 0:
-                    # Normaliza a direção e aplica velocidade
+                    # Normaliza a direção
                     dx = (dx / distance) * VELOCIDADE_GHOST
                     dy = (dy / distance) * VELOCIDADE_GHOST
                     
-                    # Atualiza direção do fantasma baseado no movimento horizontal
+                    if self.powerup_active:
+                        # --- [ALTERADO] FUGIR ---
+                        # Inverte a direção para fugir
+                        dx = -dx
+                        dy = -dy
+                    # else:
+                        # --- PERSEGUIR (comportamento padrão) ---
+                        # dx e dy já estão corretos para perseguir
+                        
+                    # Atualiza direção do sprite (baseado no movimento REAL, não no alvo)
                     if dx > 0:
-                        self.ghost_direction = 1  # Movendo para direita (ghost2)
+                        self.ghost_direction = 1  
                     elif dx < 0:
-                        self.ghost_direction = -1  # Movendo para esquerda (ghost1)
+                        self.ghost_direction = -1  
                     
-                    # Atualiza posição do fantasma
+                    # Atualiza posição
                     new_gx = int(gx + dx)
                     new_gy = int(gy + dy)
                     
-                    # Mantém o fantasma dentro da tela
+                    # Mantém na tela
                     new_gx = max(MARGEM_SPAWN, min(LARGURA_TELA - MARGEM_SPAWN, new_gx))
                     new_gy = max(MARGEM_SPAWN, min(ALTURA_TELA - MARGEM_SPAWN, new_gy))
-                    
                     self.ghost_pos = (new_gx, new_gy)
                 
-                # Desenha o fantasma baseado na direção
-                gx, gy = self.ghost_pos
-                # Escolhe a imagem do fantasma baseada na direção
-                if self.ghost_direction == 1:  # Direita
-                    current_ghost = self.imgGhost2
-                    w_ghost, h_ghost = self.wGhost2, self.hGhost2
-                else:  # Esquerda
-                    current_ghost = self.imgGhost1
-                    w_ghost, h_ghost = self.wGhost1, self.hGhost1
+                # --- [LÓGICA DE DESENHO DO FANTASMA (ALTERADA)] ---
+                gx, gy = self.ghost_pos # Pega a posição atualizada
                 
-                # Efeito de piscar nos últimos 2 segundos
-                if elapsed_ghost > DURACAO_GHOST_S - 2:
-                    # Pisca a cada 0.3 segundos
-                    if int(elapsed_ghost * 3) % 2 == 0:
-                        imgMain = cvzone.overlayPNG(imgMain, current_ghost, (gx - w_ghost // 2, gy - h_ghost // 2))
+                if self.powerup_active:
+                    # Se powerup, fantasma é azul (vulnerável)
+                    current_ghost = self.imgGhost3
+                    w_ghost, h_ghost = self.wGhost3, self.hGhost3
                 else:
-                    imgMain = cvzone.overlayPNG(imgMain, current_ghost, (gx - w_ghost // 2, gy - h_ghost // 2))
+                    # Se normal, fantasma é 1 ou 2 (baseado na direção)
+                    if self.ghost_direction == 1:  # Direita
+                        current_ghost = self.imgGhost2
+                        w_ghost, h_ghost = self.wGhost2, self.hGhost2
+                    else:  # Esquerda
+                        current_ghost = self.imgGhost1
+                        w_ghost, h_ghost = self.wGhost1, self.hGhost1
                 
-                # Colisão com fantasma (cobra morre se não tiver powerup)
-                if not self.powerup_active:
-                    if abs(hx - gx) < RAIO_COLISAO_CORPO and abs(hy - gy) < RAIO_COLISAO_CORPO:
+                # Efeito de piscar (agora pisca o fantasma vulnerável se o powerup estiver acabando)
+                # Ou pisca o fantasma normal se o tempo dele estiver acabando
+                
+                is_blinking = False
+                if self.powerup_active:
+                    # Pisca se o POWERUP estiver acabando
+                    elapsed_powerup = time.time() - self.powerup_timer
+                    if elapsed_powerup > DURACAO_POWERUP_S - 2:
+                        is_blinking = int(elapsed_powerup * 3) % 2 == 0
+                else:
+                    # Pisca se o FANTASMA estiver prestes a sumir
+                    if elapsed_ghost > DURACAO_GHOST_S - 2:
+                        is_blinking = int(elapsed_ghost * 3) % 2 == 0
+                
+                if not is_blinking:
+                    imgMain = cvzone.overlayPNG(imgMain, current_ghost, (gx - w_ghost // 2, gy - h_ghost // 2))
+
+                # --- [LÓGICA DE COLISÃO DO FANTASMA (ALTERADA)] ---
+                # Verifica a colisão em qualquer caso
+                if abs(hx - gx) < RAIO_COLISAO_CORPO and abs(hy - gy) < RAIO_COLISAO_CORPO:
+                    if self.powerup_active:
+                        # Comeu o fantasma!
+                        self.ghost_active = False # Fantasma "comido"
+                        self.score += PONTOS_POR_GHOST # Ganha pontos
+                    else:
+                        # Fantasma pegou a cobra (sem powerup)
                         self.gameOver = True
-                        # Verifica e salva high score
                         if self.score > self.high_score:
                             self.high_score = self.score
                             self.save_high_score()
+                # --- [FIM DAS ALTERAÇÕES NO FANTASMA] ---
 
         # Power-up info
         if self.powerup_active:
@@ -495,7 +518,8 @@ class SnakeGame:
             if elapsed > DURACAO_POWERUP_S:
                 self.powerup_active = False
             else:
-                texto_powerup = f'IMORTALIDADE ({DURACAO_POWERUP_S - int(elapsed)}s)'
+                # <-- [ALTERADO] Mudei o texto para refletir a nova habilidade
+                texto_powerup = f'POWER-UP! ({DURACAO_POWERUP_S - int(elapsed)}s)'
                 cvzone.putTextRect(imgMain, texto_powerup, POS_POWERUP_TXT, scale=SCALE_SCORE_TXT, thickness=2, offset=OFFSET_TEXTO, colorR=(0, 0, 0), colorT=(0, 255, 0))
 
         # Atualiza high score se necessário (durante o jogo)
@@ -538,11 +562,7 @@ while True:
         cv2.circle(img, tuple(pontIndex), RAIO_PONTA_DEDO, COR_PONTA_DEDO, cv2.FILLED)
         img = game.update(img, pontIndex, fingers)
     else:
-        # --- [CORREÇÃO AQUI] ---
-        # Reseta a "cabeça anterior" quando a mão é perdida
-        # Isso previne o "salto" de distância e o bug
         game.prev_head = None
-        # ---------------------
         
         # Tela inicial
         img_pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
