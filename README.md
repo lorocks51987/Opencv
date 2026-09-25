@@ -99,8 +99,9 @@ Demonstração do potencial acadêmico, social e de inclusão da Inteligência A
   - 🌿 **Modo 0 (`[F1]`): Tela Limpa (Minimalista / Zen)**: Apenas a câmera widescreen com uma pílula moderna translúcida no canto superior direito mostrando a letra reconhecida com glow. Zero poluição visual!
   - 🎯 **Modo 1 (`[F2]`): Jogo Desafio Educativo**: Desafio de acertar a letra sorteada, com guia oficial de como posicionar cada dedo, barra de 1s e placar de acertos do aluno!
   - ✍️ **Modo 2 (`[F3]`): Soletrador de Palavras no Ar**: O visitante soletra palavras ou o próprio nome no ar em LIBRAS! Ao segurar uma letra por 1s, ela é adicionada à palavra na tela (ex: `L-U-C-A-S`).
+- **Exclusividade da Mão Direita (Anti-Confusão)**: Reconhece e classifica apenas a mão direita física, eliminando qualquer inversão ou confusão entre letras espelhadas (ex: `O`, `C`, `D`). Caso o visitante use a mão esquerda, a IA orienta visualmente a levantar a mão direita.
 - **Classificador de Machine Learning Vectorized (KNN)**: 73 características biométricas 3D com processamento BLAS/SIMD em C (latência de **0.14 ms** e taxa de **60 FPS** estável).
-- **Alfabeto Completo (A a Z)** com modo de calibração em 2 segundos (teclas `A` a `Z` 100% livres, sem qualquer colisão de comandos!).
+- **Alfabeto Completo (A a Z) com Salvamento Permanente no Disco**: Calibre qualquer letra em menos de 1 segundo pressionando a respectiva tecla (`A` a `Z`). O modelo atualiza e grava imediatamente no arquivo `libras_dataset.json` de forma persistente!
 - **Easter Eggs Especiais**:
   - 🔞 **Dedo do Meio (🖕)**: Efeito censura de TV (mosaico pixelado na mão, tarja vermelha `[ CENSURADO ]` e som clássico de PIIII).
   - 👍 **Joinha**: Chuva de confetes coloridos, selo `100% APROVADO PELO STAND DE ADS!` e jingle triunfal (com filtro biométrico inteligente para **nunca** confundir com a letra "A").

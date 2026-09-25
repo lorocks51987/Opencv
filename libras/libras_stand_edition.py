@@ -171,6 +171,22 @@ def desenhar_landmarks_biometricos(img, hand_landmarks, w, h):
             cv2.circle(img, pt, 3, (0, 200, 255), -1, cv2.LINE_AA)
             cv2.circle(img, pt, 1, (255, 255, 255), -1, cv2.LINE_AA)
 
+def desenhar_landmarks_mao_esquerda_aviso(img, hand_landmarks, w, h):
+    """Desenha landmarks da mão esquerda em tom de aviso âmbar para orientar o usuário a usar a direita."""
+    pts = [(int(lm.x * w), int(lm.y * h)) for lm in hand_landmarks.landmark]
+    conexoes = [
+        (0, 1), (1, 2), (2, 3), (3, 4),
+        (0, 5), (5, 6), (6, 7), (7, 8),
+        (5, 9), (9, 10), (10, 11), (11, 12),
+        (9, 13), (13, 14), (14, 15), (15, 16),
+        (13, 17), (17, 18), (18, 19), (19, 20),
+        (0, 17)
+    ]
+    for p1_idx, p2_idx in conexoes:
+        cv2.line(img, pts[p1_idx], pts[p2_idx], (0, 140, 255), 1, cv2.LINE_AA)
+    for pt in pts:
+        cv2.circle(img, pt, 3, (0, 180, 255), -1, cv2.LINE_AA)
+
 def encontrar_camera():
     for idx in [1, 0, 2]:
         cap = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
@@ -196,7 +212,7 @@ def main():
     mp_hands = mp.solutions.hands
     hands_detector = mp_hands.Hands(
         static_image_mode=False,
-        max_num_hands=1,
+        max_num_hands=2,
         model_complexity=0,
         min_detection_confidence=0.55,
         min_tracking_confidence=0.55
@@ -232,7 +248,9 @@ def main():
     modo_gravando = False
     letra_alvo_gravacao = ""
     frames_gravados = 0
-    total_frames_gravar = 35
+    total_frames_gravar = 20
+    calibrado_feedback_txt = ""
+    calibrado_feedback_timer = 0.0
 
     # Easter Eggs
     easter_egg_censura_ativo = False
@@ -273,34 +291,59 @@ def main():
         easter_egg_censura_ativo = False
         easter_egg_joinha_ativo = False
 
-        if results.multi_hand_landmarks:
-            hand_found = True
-            for hand_landmarks in results.multi_hand_landmarks:
-                pts_x = [int(lm.x * w) for lm in hand_landmarks.landmark]
-                pts_y = [int(lm.y * h) for lm in hand_landmarks.landmark]
+        mao_direita_encontrada = False
+        mao_esquerda_apenas = False
+        hand_landmarks_escolhida = None
+
+        if results.multi_hand_landmarks and results.multi_handedness:
+            # 1. Busca prioritária exclusiva pela Mão DIREITA física
+            for hand_landmarks, handedness_info in zip(results.multi_hand_landmarks, results.multi_handedness):
+                label_raw = handedness_info.classification[0].label
+                # Com espelhamento horizontal ativado (selfie flip): 'Right' no MediaPipe é a Mão Direita física
+                # Sem espelhamento: 'Left' no MediaPipe é a Mão Direita física
+                is_right_hand = (label_raw == "Right") if espelhar_video else (label_raw == "Left")
+
+                if is_right_hand:
+                    mao_direita_encontrada = True
+                    hand_landmarks_escolhida = hand_landmarks
+                    break
+
+            # Se nenhuma mão direita foi encontrada, mas há mão esquerda em frente à câmera
+            if not mao_direita_encontrada and len(results.multi_hand_landmarks) > 0:
+                mao_esquerda_apenas = True
+                desenhar_landmarks_mao_esquerda_aviso(img, results.multi_hand_landmarks[0], w, h)
+                dica_letra = "ATENCAO: Mostre a mao DIREITA para LIBRAS"
+
+            # 2. Se a mão direita foi confirmada, processa calibração e classificação
+            if mao_direita_encontrada and hand_landmarks_escolhida is not None:
+                hand_found = True
+                pts_x = [int(lm.x * w) for lm in hand_landmarks_escolhida.landmark]
+                pts_y = [int(lm.y * h) for lm in hand_landmarks_escolhida.landmark]
                 hand_bbox = (min(pts_x), min(pts_y), max(pts_x), max(pts_y))
 
-                for id_pt, lm in enumerate(hand_landmarks.landmark):
+                for id_pt, lm in enumerate(hand_landmarks_escolhida.landmark):
                     px, py, pz = int(lm.x * w), int(lm.y * h), lm.z
                     lmList.append([id_pt, px, py, pz])
 
-                # Gravação de calibração
+                # Gravação de calibração (apenas com mão direita!)
                 if modo_gravando and letra_alvo_gravacao:
                     sucesso_add = ml_engine.adicionar_amostra(letra_alvo_gravacao, lmList)
                     if sucesso_add:
                         frames_gravados += 1
                         if frames_gravados >= total_frames_gravar:
-                            ml_engine.salvar_dataset()
+                            salvo_ok = ml_engine.finalizar_gravacao_classe(letra_alvo_gravacao)
                             tocar_som_gravar()
+                            calibrado_feedback_txt = f"LETRA '{letra_alvo_gravacao}' CALIBRADA E SALVA NO DISCO!"
+                            calibrado_feedback_timer = time.time() + 3.0
                             modo_gravando = False
                             letra_alvo_gravacao = ""
                             frames_gravados = 0
 
-                # Classificação ML
+                # Classificação ML precisa
                 letra_detectada, confianca_val, dica_letra = ml_engine.classificar(lmList)
 
                 # Detecção Anatômica de Easter Eggs
-                pts_arr = [(lm.x * w, lm.y * h) for lm in hand_landmarks.landmark]
+                pts_arr = [(lm.x * w, lm.y * h) for lm in hand_landmarks_escolhida.landmark]
 
                 # Escala biométrica de referência da mão (pulso ao nó médio)
                 escala_mao = np.hypot(pts_arr[9][0] - pts_arr[0][0], pts_arr[9][1] - pts_arr[0][1])
@@ -316,9 +359,7 @@ def main():
                 if (medio_ereto and indicador_fechado and anelar_fechado and mindinho_fechado) or (letra_detectada == "CENSURA"):
                     easter_egg_censura_ativo = True
 
-                # 2. Joinha (👍) vs Letra 'A':
-                # Na letra 'A', o polegar fica colado ao lado do indicador (dist_4_5 baixa).
-                # No Joinha verdadeiro, o polegar é abduzido (afastado) e fica bem acima de TODOS os nós.
+                # 2. Joinha (👍) vs Letra 'A'
                 dist_4_5 = np.hypot(pts_arr[4][0] - pts_arr[5][0], pts_arr[4][1] - pts_arr[5][1])
                 polegar_afastado = (dist_4_5 / escala_mao) >= 0.55
                 polegar_muito_alto = (pts_arr[4][1] < pts_arr[5][1] - (escala_mao * 0.30)) and (pts_arr[4][1] < pts_arr[9][1] - (escala_mao * 0.25))
@@ -337,7 +378,7 @@ def main():
                     easter_egg_joinha_ativo = True
 
                 if not easter_egg_censura_ativo:
-                    desenhar_landmarks_biometricos(img, hand_landmarks, w, h)
+                    desenhar_landmarks_biometricos(img, hand_landmarks_escolhida, w, h)
 
         now = time.time()
 
@@ -559,6 +600,32 @@ def main():
             if prog_soletrar > 0:
                 cv2.rectangle(img, (bx + 15, by + 68), (bx + 15 + int(135 * prog_soletrar), by + 74), (0, 255, 140), -1)
 
+        # AVISO QUANDO APENAS A MÃO ESQUERDA FOR DETECTADA
+        if mao_esquerda_apenas and not mao_direita_encontrada:
+            cx_av = w // 2 - 200
+            cy_av = 130
+            desenhar_retangulo_arredondado(
+                img, (cx_av, cy_av), (cx_av + 400, cy_av + 58),
+                cor_fundo=(35, 20, 10), cor_borda=(0, 160, 255), raio=12, alpha=0.92, espessura_borda=2
+            )
+            cv2.putText(
+                img, "[ ! ] USE A MAO DIREITA", (cx_av + 32, cy_av + 38),
+                cv2.FONT_HERSHEY_DUPLEX, 0.68, (0, 200, 255), 2, cv2.LINE_AA
+            )
+
+        # BANNER DE CONFIRMAÇÃO DE CALIBRAÇÃO SALVA
+        if time.time() < calibrado_feedback_timer:
+            cx_c = w // 2 - 270
+            cy_c = 75
+            desenhar_retangulo_arredondado(
+                img, (cx_c, cy_c), (cx_c + 540, cy_c + 56),
+                cor_fundo=(10, 35, 20), cor_borda=(0, 255, 140), raio=12, alpha=0.94, espessura_borda=2
+            )
+            cv2.putText(
+                img, calibrado_feedback_txt, (cx_c + 20, cy_c + 36),
+                cv2.FONT_HERSHEY_DUPLEX, 0.52, (0, 255, 140), 1, cv2.LINE_AA
+            )
+
         # MODAL DE CALIBRAÇÃO (AO APERTAR A-Z ou 1/2)
         if modo_gravando:
             cx_m = w // 2 - 250
@@ -572,7 +639,7 @@ def main():
                 (cx_m + 35, cy_m + 45), cv2.FONT_HERSHEY_DUPLEX, 0.75, (0, 255, 180), 2, cv2.LINE_AA
             )
             cv2.putText(
-                img, "Mantenha a pose da mao estavel na camera...",
+                img, "Mantenha a MAO DIREITA estavel na camera...",
                 (cx_m + 35, cy_m + 75), cv2.FONT_HERSHEY_DUPLEX, 0.48, (210, 215, 225), 1, cv2.LINE_AA
             )
             prog_g = frames_gravados / float(total_frames_gravar)
@@ -601,9 +668,17 @@ def main():
             cv2.FONT_HERSHEY_DUPLEX, 0.44, cor_espelho, 1, cv2.LINE_AA
         )
 
+        # Indicador de Mão Direita Ativa
+        cor_badge_mao = (0, 255, 140) if mao_direita_encontrada else ((0, 160, 255) if mao_esquerda_apenas else (140, 145, 160))
+        txt_badge_mao = "MAO DIREITA OK" if mao_direita_encontrada else ("USE MAO DIREITA" if mao_esquerda_apenas else "AGUARDANDO MAO")
+        cv2.putText(
+            img, f"[{txt_badge_mao}]", (585, h - 14),
+            cv2.FONT_HERSHEY_DUPLEX, 0.44, cor_badge_mao, 1, cv2.LINE_AA
+        )
+
         cv2.putText(
             img, "[A-Z: Calibrar] | [TAB: Tela Cheia] | [ESC: Sair]",
-            (w // 2 + 50, h - 14), cv2.FONT_HERSHEY_DUPLEX, 0.44, (180, 185, 200), 1, cv2.LINE_AA
+            (775, h - 14), cv2.FONT_HERSHEY_DUPLEX, 0.42, (180, 185, 200), 1, cv2.LINE_AA
         )
 
         fps_cont += 1
@@ -631,7 +706,8 @@ def main():
         is_delete = (key_raw in [3014656, 0x2E0000, 65535, 127]) or ((key_raw >> 16) == 0x2E)
 
         # Tratamento de Teclas
-        if key == 27:  # ESC
+        if key == 27:  # ESC: Salva dataset antes de sair
+            ml_engine.salvar_dataset()
             break
         elif is_f1:  # F1: Modo 0 (Tela Limpa)
             modo_tela = 0

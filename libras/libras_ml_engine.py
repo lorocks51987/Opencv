@@ -124,35 +124,44 @@ class LibrasMLEngine:
         self._atualizar_cache_matriz()
 
     def salvar_dataset(self):
-        """Persiste o dataset em JSON."""
+        """Persiste o dataset em JSON no disco com garantia de escrita."""
         serializavel = {k: [v.tolist() for v in lista] for k, lista in self.dataset.items()}
         try:
             with open(FILE_DATASET, "w", encoding="utf-8") as f:
-                json.dump(serializavel, f, indent=2)
-            print(f"[IA LIBRAS] Dataset salvo com sucesso ({len(self.dataset)} classes).")
+                json.dump(serializavel, f, indent=2, ensure_ascii=False)
+            print(f"[IA LIBRAS] Dataset salvo com sucesso no arquivo: '{FILE_DATASET}' ({len(self.dataset)} classes registradas).")
         except Exception as e:
             print(f"[ERRO AO SALVAR DATASET] {e}")
         self._atualizar_cache_matriz()
 
     def iniciar_gravacao_classe(self, letra):
-        """Prepara e limpa os dados anteriores da letra para recalibrar com poses novas da mão."""
+        """Prepara gravação isolada em buffer sem destruir dados anteriores até concluir."""
         letra = letra.upper().strip()
-        self.dataset[letra] = []
-        self._atualizar_cache_matriz()
+        self._letra_ativa = letra
+        self._buffer_gravacao = []
 
     def adicionar_amostra(self, letra, lmList):
-        """Adiciona uma amostra da mão do usuário para uma letra e atualiza o modelo."""
+        """Adiciona uma amostra da mão do usuário para uma letra no buffer de calibração."""
         letra = letra.upper().strip()
         vetor = extrair_vetor_landmarks(lmList)
         if vetor is None:
             return False
 
-        if letra not in self.dataset:
-            self.dataset[letra] = []
+        if not hasattr(self, '_buffer_gravacao'):
+            self._buffer_gravacao = []
 
-        self.dataset[letra].append(vetor)
-        self._atualizar_cache_matriz()
+        self._buffer_gravacao.append(vetor)
         return True
+
+    def finalizar_gravacao_classe(self, letra):
+        """Aplica a nova calibração gravada e salva imediatamente no disco."""
+        letra = letra.upper().strip()
+        if hasattr(self, '_buffer_gravacao') and len(self._buffer_gravacao) > 0:
+            self.dataset[letra] = list(self._buffer_gravacao)
+            self._buffer_gravacao = []
+            self.salvar_dataset()
+            return True
+        return False
 
     def classificar(self, lmList, k=3):
         """
