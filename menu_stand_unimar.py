@@ -47,9 +47,9 @@ PROJETOS = [
     },
     {
         "id": "4",
-        "titulo": "4. FINGER ARCADE & GESTURE ARENA",
-        "tag": "BIOMETRIA, MATH & JOKENPO",
-        "desc": "HUD Holografico (0-10 dedos), Desafio Math Blitz de 45s e Jokenpo contra a IA.",
+        "titulo": "4. MATH BLITZ - DESAFIO DOS DEDOS",
+        "tag": "AGILIDADE MENTAL & REFLEXOS",
+        "desc": "Resolva continhas rapidas no ar mostrando a quantidade de dedos em 45 segundos!",
         "script": os.path.join(SCRIPT_DIR, "finger_arcade", "Finger_Arcade.py"),
         "cor": (255, 120, 220)
     }

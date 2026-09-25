@@ -123,25 +123,26 @@ Demonstração do potencial acadêmico, social e de inclusão da Inteligência A
 
 ---
 
-### 4. 🖐️ Finger Arcade & Gesture Arena (3 Modos Interativos)
+### 4. 🧮 Math Blitz: Desafio dos Dedos (Edição Stand)
 *Localização: `finger_arcade/Finger_Arcade.py` ou `examples/countFinger.py`*
 
-Showcase de biometria de alta velocidade com contagem de 0 a 10 dedos (duas mãos simultâneas) e minigames:
-- **3 Modos de Apresentação Dedicados**:
-  - 🤖 **Modo 1 (`[F1]`): Dashboard Biométrico Sci-Fi**: HUD holográfico estilo *Minority Report* com miras nas pontas dos dedos erguidos, contagem independente (mão esquerda, mão direita e total) e reconhecimento instantâneo de gestos (Paz e Amor, Rock 'n' Roll, Hang Loose, Joinha, Coração, Palma Aberta e Punho Fechado).
-  - ⚡ **Modo 2 (`[F2]`): Math Blitz & Reação Rápida**: Desafio arcade de 45 segundos contra o relógio! A IA sorteia comandos rápidos (*"MOSTRE: 7 DEDOS!"*) ou continhas instantâneas (*"4 + 3 = ?"*). Acertos rápidos ativam combos (x1 a x5), explosão de partículas e salvam o Recorde do Stand.
-  - ✌️ **Modo 3 (`[F3]`): Jokenpô Arcade contra a IA**: Duelo clássico de Pedra, Papel e Tesoura contra o Robô de ADS! Contagem regressiva com efeitos sonoros (3... 2... 1... JÁ!), detecção de jogada, efeitos visuais de vitória/derrota e placar de vitórias consecutivas (Streak).
+Jogo arcade eletrizante focado em agilidade mental, matemática rápida e reflexos biométricos:
+- **Resolução de Contas no Ar**: O aluno resolve continhas matemáticas em tempo real mostrando a quantidade exata de dedos (0 a 10 dedos usando ambas as mãos simultaneamente).
+- **Desafios Dinâmicos**:
+  - Somas rápidas: *"QUANTO É: 4 + 3?"*, *"5 + 2 = ?"*, *"1 + 4 = ?"*
+  - Subtrações rápidas: *"QUANTO É: 8 - 3?"*, *"10 - 4 = ?"*
+  - Reação direta: *"MOSTRE EXATAMENTE: 7 DEDOS!"*, *"MOSTRE: 10 DEDOS!"*
+- **Combos e Efeitos Visuais**: Acertos rápidos sustentados por 0.3s disparam bônus de multiplicador de Combo (**x1 a x5**), explosão de partículas neon e sons procedurais.
+- **Partidas de 45 Segundos**: Tempo ideal para dinâmica rápida de filas no stand, permitindo que vários visitantes compitam em sequência.
+- **Placar Minimalista do Stand**: Tela de Game Over com a pontuação final do aluno e o **Maior Recorde de Todo o Evento** salvo automaticamente no disco (`recorde_math.json`).
 
-#### ⌨️ Tabela Completa de Atalhos - Finger Arcade:
+#### ⌨️ Tabela Completa de Atalhos - Math Blitz:
 | Tecla | Ação |
 | :--- | :--- |
-| **`[F1]`** | Ativa o **Modo 1: Dashboard Biométrico Sci-Fi** (HUD Holográfico) |
-| **`[F2]`** | Ativa o **Modo 2: Math Blitz & Reação Rápida** (Desafio de 45s) |
-| **`[F3]`** | Ativa o **Modo 3: Jokenpô contra a IA** (Pedra, Papel e Tesoura) |
-| **`[ESPAÇO]`** | Inicia duelo / próxima rodada / alterna espelhamento da câmera |
-| **`[R]`** | Reinicia imediatamente a partida do Math Blitz ou do Jokenpô |
+| **`[ESPAÇO]`** | Inicia a partida / Reinicia em Game Over / Alterna espelhamento da câmera |
+| **`[R]`** | Reinicia imediatamente a partida a qualquer momento |
 | **`[TAB]`** ou **`[F]`** | Alterna Modo Tela Cheia |
-| **`[ESC]`** ou **`[Q]`** | Sair do Finger Arcade |
+| **`[ESC]`** ou **`[Q]`** | Sair do jogo |
 
 ---
 
