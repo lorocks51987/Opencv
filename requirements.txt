@@ -1,22 +1,23 @@
-# Hand Gesture Recognition Projects - Working Versions
-# Compatible with Python 3.8+ on Windows, macOS, and Linux
+# =============================================================================
+# ADS Unimar - Stand Unimar Aberta
+# Dependências dos Projetos de Visão Computacional (OpenCV + MediaPipe)
+# Compatível com Python 3.8, 3.9, 3.10, 3.11 e 3.12 (Windows / Linux / macOS)
+# =============================================================================
 
-# Computer Vision and Image Processing
-opencv-python==4.8.0.76
-numpy==1.24.3
+# Visão Computacional e Processamento de Imagens
+opencv-python>=4.8.0
 
-# Hand Detection and Tracking
-mediapipe==0.10.21
+# Manipulação de Matrizes Numéricas (NumPy 1.x para compatibilidade com MediaPipe)
+numpy>=1.24.0,<2.0.0
 
-# Gesture Classification
-cvzone==1.5.6
+# Rastreamento de Mãos e Estimativa de Poses Biométricas
+mediapipe>=0.10.9
 
-# Machine Learning (stable version)
-tensorflow==2.15.0
+# Módulos Utilitários de Visão Computacional (Snake Game)
+cvzone>=1.5.6
 
-# Mouse Control
-pyautogui==0.9.54
+# Manipulação de Imagens e Molduras Gráficas Oficiais (Pintor Virtual)
+pillow>=9.5.0
 
-# Additional dependencies
-pillow==10.0.0
-scipy==1.11.1
+# Controle de Mouse por Gestos (Exemplos)
+pyautogui>=0.9.54

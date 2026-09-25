@@ -1,3 +1,4 @@
+import os
 import cvzone
 import cv2
 import numpy as np
@@ -8,17 +9,21 @@ from cvzone.HandTrackingModule import HandDetector
 from PIL import ImageFont, ImageDraw, Image
 
 # --- Constantes ---
+# Configurações de Path
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Configurações da Câmera e Tela
-CAMERA_ID = 1
+# CAMERA_ID = 1  <-- Removido em favor da seleção automática
 LARGURA_TELA = 1280
 ALTURA_TELA = 720
+
 DETECTION_CON = 0.8
 MAX_HANDS = 1
 
 # Configurações de Fonte
 FONTE_GRANDE_TAM = 50
 FONTE_PEQUENA_TAM = 30
-CAMINHO_FONTE = "arial.ttf"
+CAMINHO_FONTE = os.path.join(SCRIPT_DIR, "arial.ttf")
 
 # Configurações dos Itens
 TAMANHO_MACA = 75
@@ -26,14 +31,14 @@ TAMANHO_DONUT = 75
 TAMANHO_POTION = 80
 TAMANHO_COIN = 90            # Moeda maior para melhor visibilidade
 TAMANHO_GHOST = 75               # Fantasma
-ARQUIVO_MACA = "enchanted_apple.gif"
-ARQUIVO_DONUT = "donut.png"
-ARQUIVO_POTION = "Potion.png"
-ARQUIVO_COIN = "coin.png"            # NOVO
-ARQUIVO_GHOST1 = "ghost1.png"        # Fantasma olhando para esquerda
-ARQUIVO_GHOST2 = "ghost2.png"        # Fantasma olhando para direita
-ARQUIVO_GHOST3 = "ghost3.png"        # <-- [NOVO] Fantasma vulnerável (estilo Pac-Man)
-ARQUIVO_HIGHSCORE = "highscore.txt"
+ARQUIVO_MACA = os.path.join(SCRIPT_DIR, "enchanted_apple.gif")
+ARQUIVO_DONUT = os.path.join(SCRIPT_DIR, "donut.png")
+ARQUIVO_POTION = os.path.join(SCRIPT_DIR, "Potion.png")
+ARQUIVO_COIN = os.path.join(SCRIPT_DIR, "coin.png")            # NOVO
+ARQUIVO_GHOST1 = os.path.join(SCRIPT_DIR, "ghost1.png")        # Fantasma olhando para esquerda
+ARQUIVO_GHOST2 = os.path.join(SCRIPT_DIR, "ghost2.png")        # Fantasma olhando para direita
+ARQUIVO_GHOST3 = os.path.join(SCRIPT_DIR, "ghost3.png")        # <-- [NOVO] Fantasma vulnerável (estilo Pac-Man)
+ARQUIVO_HIGHSCORE = os.path.join(SCRIPT_DIR, "highscore.txt")
 
 # Configurações do Jogo
 COMPRIMENTO_INICIAL = 150
@@ -76,9 +81,37 @@ OFFSET_TEXTO = 5
 
 
 # --- Configuração da câmera ---
-cap = cv2.VideoCapture(CAMERA_ID)
+# --- Função auxiliar para câmera ---
+def get_camera():
+    # Tenta primeiro a câmera 1 (segundária) conforme pedido, depois a 0 (principal)
+    for i in [1, 0]:
+        # cv2.CAP_DSHOW ajuda a evitar erros de backend no Windows
+        cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+        if cap.isOpened():
+            # Tenta ler um frame para garantir
+            ret, _ = cap.read()
+            if ret:
+                print(f"Usando câmera índice: {i}")
+                return cap
+            cap.release()
+    return None
+
+# --- Configuração da câmera ---
+cap = get_camera()
+if cap is None:
+    print("Erro: Nenhuma câmera encontrada!")
+    exit()
+
 cap.set(3, LARGURA_TELA)
 cap.set(4, ALTURA_TELA)
+
+# Ler o tamanho REAL da câmera (caso ela não suporte 1280x720)
+success, img_test = cap.read()
+if success:
+    ALTURA_TELA, LARGURA_TELA, _ = img_test.shape
+    print(f"Resolução da câmera detectada: {LARGURA_TELA}x{ALTURA_TELA}")
+else:
+    print("Aviso: Não foi possível ler frame de teste para ajustar resolução.")
 
 # --- Detector de mãos ---
 detector = HandDetector(detectionCon=DETECTION_CON, maxHands=MAX_HANDS)

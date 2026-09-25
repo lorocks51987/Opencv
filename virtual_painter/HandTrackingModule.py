@@ -17,6 +17,7 @@ class handDetector:
         self.hands = self.mpHands.Hands(
             static_image_mode=bool(self.mode),
             max_num_hands=int(self.maxHands),
+            model_complexity=0,
             min_detection_confidence=float(self.detectionCon),
             min_tracking_confidence=float(self.trackCon)
         )
@@ -24,7 +25,14 @@ class handDetector:
         self.tipIds = [4, 8, 12, 16, 20]
 
     def findHands(self, img, draw=True):
-        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # Otimização de performance: inferência em resolução reduzida
+        h_orig, w_orig = img.shape[:2]
+        if w_orig > 640:
+            scale_img = cv2.resize(img, (640, int(640 * h_orig / w_orig)), interpolation=cv2.INTER_LINEAR)
+        else:
+            scale_img = img
+
+        imgRGB = cv2.cvtColor(scale_img, cv2.COLOR_BGR2RGB)
         self.results = self.hands.process(imgRGB)
 
         if self.results.multi_hand_landmarks:

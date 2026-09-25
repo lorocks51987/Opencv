@@ -17,7 +17,7 @@ mp_draw = mp.solutions.drawing_utils
 screen_width, screen_height = pyautogui.size()
 
 # Inicializa câmera
-camera = cv2.VideoCapture(1)
+camera = cv2.VideoCapture(0)
 
 # Variáveis de suavização e clique
 prev_x, prev_y = 0, 0

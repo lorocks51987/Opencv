@@ -122,6 +122,14 @@ dmypy.json
 # Training data (keep model files but ignore collected data)
 libras/data/*/
 !libras/data/.gitkeep
+*venv*/
+
+# Virtual Painter Visitor Gallery & Local Leads
+virtual_painter/galeria_visitantes/*.png
+virtual_painter/galeria_visitantes/*.jpg
+!virtual_painter/galeria_visitantes/.gitkeep
+virtual_painter/leads_visitantes.csv
+virtual_painter/fila_emails.json
 
 # Temporary files
 *.tmp
@@ -147,3 +155,4 @@ Thumbs.db
 # Camera test images
 test_images/
 screenshots/
+
