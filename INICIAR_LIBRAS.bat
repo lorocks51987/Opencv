@@ -1,13 +1,15 @@
 @echo off
 chcp 65001 > nul
-title IA Educacional de LIBRAS - Stand ADS Unimar Aberta
-color 0B
+title IA Educacional de LIBRAS - ADS Unimar
+color 0A
 
 cd /d "%~dp0"
-echo ===============================================================================
-echo       INICIANDO IA EDUCACIONAL DE LIBRAS (ADS UNIMAR ABERTA)...
-echo ===============================================================================
-python libras\libras_classifier.py
+echo Iniciando IA Educacional de LIBRAS...
+if exist ".venv\Scripts\python.exe" (
+    .venv\Scripts\python.exe libras\libras_stand_edition.py
+) else (
+    python libras\libras_stand_edition.py
+)
 if %errorlevel% neq 0 (
     echo.
     echo O programa foi encerrado ou encontrou um erro.

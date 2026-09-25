@@ -24,27 +24,28 @@ import random
 import json
 import threading
 
-# Sons procedurais nativos do Windows
+# Sons procedurais nativos do Windows (TODOS em background thread para não travar o loop)
 try:
     import winsound
+    def _beep_bg(*beeps):
+        def _w():
+            for freq, dur in beeps:
+                winsound.Beep(freq, dur)
+        threading.Thread(target=_w, daemon=True).start()
     def tocar_som_acerto():
-        winsound.Beep(988, 70)
-        winsound.Beep(1318, 110)
+        _beep_bg((988, 70), (1318, 110))
     def tocar_som_tick():
-        winsound.Beep(880, 40)
+        _beep_bg((880, 40),)
+    def tocar_som_erro():
+        _beep_bg((330, 80), (260, 100))
     def tocar_som_vitoria():
-        threading.Thread(target=_worker_vitoria, daemon=True).start()
-    def _worker_vitoria():
-        for freq in [523, 659, 784, 1046]:
-            winsound.Beep(freq, 60)
+        _beep_bg((523, 60), (659, 60), (784, 60), (1046, 60))
     def tocar_som_fim():
-        threading.Thread(target=_worker_fim, daemon=True).start()
-    def _worker_fim():
-        for freq in [440, 370, 311]:
-            winsound.Beep(freq, 90)
+        _beep_bg((440, 90), (370, 90), (311, 90))
 except Exception:
     def tocar_som_acerto(): pass
     def tocar_som_tick(): pass
+    def tocar_som_erro(): pass
     def tocar_som_vitoria(): pass
     def tocar_som_fim(): pass
 
@@ -226,9 +227,11 @@ def main():
     fps_cont = 0
     fps_display = 0
 
+    ultimo_tick_seg = -1  # controla disparo do tick 1x por segundo
+
     def sortear_desafio():
         nonlocal pergunta_txt, resposta_alvo
-        tipo = random.choice(["soma", "soma", "sub", "direto"])
+        tipo = random.choice(["soma", "soma", "sub", "mult", "direto"])
         if tipo == "soma":
             a = random.randint(1, 5)
             b = random.randint(1, 5)
@@ -239,6 +242,11 @@ def main():
             b = random.randint(1, a - 1)
             resposta_alvo = a - b
             pergunta_txt = f"QUANTO E: {a} - {b} = ?"
+        elif tipo == "mult":
+            a = random.randint(1, 5)
+            b = random.randint(1, 2)
+            resposta_alvo = a * b
+            pergunta_txt = f"QUANTO E: {a} x {b} = ?"
         else:
             resposta_alvo = random.randint(1, 10)
             pergunta_txt = f"MOSTRE EXATAMENTE: {resposta_alvo} DEDOS!"
@@ -329,8 +337,10 @@ def main():
             tempo_decorrido = now - tempo_inicio
             tempo_restante = max(0.0, duracao_jogo - tempo_decorrido)
 
-            # Efeito sonoro do timer nos últimos 5 segundos
-            if tempo_restante <= 5.0 and int(tempo_restante) != int(tempo_restante + 0.05):
+            # Efeito sonoro do timer nos últimos 5 segundos (1 beep por segundo)
+            seg_atual = int(tempo_restante)
+            if tempo_restante <= 5.0 and seg_atual != ultimo_tick_seg and seg_atual >= 0:
+                ultimo_tick_seg = seg_atual
                 tocar_som_tick()
 
             # Fim do Tempo -> Game Over
@@ -402,6 +412,10 @@ def main():
                     sortear_desafio()
                     tempo_resposta_sustentada = 0.0
             else:
+                # Quebra de combo: o jogador mostrou os dedos errados
+                if tempo_resposta_sustentada > 0 and combo > 1:
+                    combo = 1  # perde o combo
+                    tocar_som_erro()
                 tempo_resposta_sustentada = 0.0
 
         # ---------------------------------------------------------------------

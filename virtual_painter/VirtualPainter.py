@@ -1,6 +1,6 @@
 """
-Ponto de entrada do Virtual Painter.
-Executa a versão moderna com cadastro de alunos, moldura de ADS e envio por e-mail.
+Ponto de entrada alternativo para o Virtual Painter.
+Pintura no ar com QR Code instantâneo para download direto no celular.
 """
 import sys
 import os

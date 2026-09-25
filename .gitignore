@@ -119,17 +119,13 @@ dmypy.json
 .pyre/
 
 # Project specific
-# Training data (keep model files but ignore collected data)
-libras/data/*/
-!libras/data/.gitkeep
-*venv*/
-
-# Virtual Painter Visitor Gallery & Local Leads
+# Dados de visitantes e recordes do stand (preservados localmente, não versionados)
 virtual_painter/galeria_visitantes/*.png
 virtual_painter/galeria_visitantes/*.jpg
 !virtual_painter/galeria_visitantes/.gitkeep
 virtual_painter/leads_visitantes.csv
-virtual_painter/fila_emails.json
+finger_arcade/recorde_math.json
+Snake_Donut/leaderboard.json
 
 # Temporary files
 *.tmp
@@ -155,4 +151,3 @@ Thumbs.db
 # Camera test images
 test_images/
 screenshots/
-

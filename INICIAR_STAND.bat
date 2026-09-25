@@ -7,7 +7,12 @@ cd /d "%~dp0"
 echo ===============================================================================
 echo       INICIANDO LAUNCHER DO STAND ADS UNIMAR ABERTA...
 echo ===============================================================================
-python menu_stand_unimar.py
+
+if exist ".venv\Scripts\python.exe" (
+    .venv\Scripts\python.exe menu_stand_unimar.py
+) else (
+    python menu_stand_unimar.py
+)
 if %errorlevel% neq 0 (
     echo.
     echo O programa foi encerrado ou encontrou um erro.

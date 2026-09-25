@@ -1,9 +1,6 @@
 """
-Ponto de entrada do Finger Arcade & Gesture Arena.
-Executa a versão definitiva com 3 Modos:
-  [F1] Dashboard Biométrico Sci-Fi (0 a 10 Dedos)
-  [F2] Math Blitz & Desafio de Reação Rápida (45s)
-  [F3] Jokenpô contra o Robô de ADS (Pedra, Papel e Tesoura)
+Ponto de entrada alternativo para o Math Blitz: Desafio dos Dedos.
+Executa o desafio de 45 segundos resolvendo continhas no ar (0 a 10 dedos).
 """
 import sys
 import os

@@ -122,9 +122,9 @@ def render_menu():
 
     # Rodapé / Instruções
     cv2.putText(
-        tela, "Pressione [1, 2, 3 ou 4] no teclado para iniciar  |  [Q ou ESC] para fechar",
-        (largura // 2 - 400, altura - 30),
-        cv2.FONT_HERSHEY_DUPLEX, 0.65, (255, 255, 255), 1, cv2.LINE_AA
+        tela, "Pressione [1, 2, 3 ou 4] no teclado para iniciar  |  [F: Tela Cheia]  |  [Q ou ESC: Sair]",
+        (largura // 2 - 450, altura - 30),
+        cv2.FONT_HERSHEY_DUPLEX, 0.58, (255, 255, 255), 1, cv2.LINE_AA
     )
 
     return tela
@@ -143,6 +143,10 @@ def main():
     nome_janela = "STAND ADS - UNIMAR ABERTA | Hub de Demonstracoes"
     cv2.namedWindow(nome_janela, cv2.WINDOW_NORMAL)
 
+    # Inicia em tela cheia para o stand
+    fullscreen = True
+    cv2.setWindowProperty(nome_janela, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
     img_menu = render_menu()
 
     while True:
@@ -151,18 +155,32 @@ def main():
 
         if key == 27 or key == ord('q') or key == ord('Q'):
             break
+        elif key == 9 or key == ord('f') or key == ord('F'):  # TAB / F: Tela Cheia
+            fullscreen = not fullscreen
+            if fullscreen:
+                cv2.setWindowProperty(nome_janela, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+            else:
+                cv2.setWindowProperty(nome_janela, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
         elif key == ord('1'):
             executar_projeto(PROJETOS[0]["script"])
             cv2.namedWindow(nome_janela, cv2.WINDOW_NORMAL)
+            if fullscreen:
+                cv2.setWindowProperty(nome_janela, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         elif key == ord('2'):
             executar_projeto(PROJETOS[1]["script"])
             cv2.namedWindow(nome_janela, cv2.WINDOW_NORMAL)
+            if fullscreen:
+                cv2.setWindowProperty(nome_janela, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         elif key == ord('3'):
             executar_projeto(PROJETOS[2]["script"])
             cv2.namedWindow(nome_janela, cv2.WINDOW_NORMAL)
+            if fullscreen:
+                cv2.setWindowProperty(nome_janela, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         elif key == ord('4'):
             executar_projeto(PROJETOS[3]["script"])
             cv2.namedWindow(nome_janela, cv2.WINDOW_NORMAL)
+            if fullscreen:
+                cv2.setWindowProperty(nome_janela, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     cv2.destroyAllWindows()
 

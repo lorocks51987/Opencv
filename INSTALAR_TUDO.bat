@@ -19,16 +19,27 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo [1/3] Verificando versao do Python...
+cd /d "%~dp0"
+
+echo [1/4] Verificando versao do Python...
 python --version
 echo.
 
-echo [2/3] Atualizando o gerenciador pip...
-python -m pip install --upgrade pip
+echo [2/4] Criando ambiente virtual (.venv) se nao existir...
+if not exist ".venv" (
+    python -m venv .venv
+    echo     Ambiente virtual criado com sucesso!
+) else (
+    echo     Ambiente virtual ja existe, reutilizando...
+)
 echo.
 
-echo [3/3] Instalando dependencias do requirements.txt...
-python -m pip install -r requirements.txt
+echo [3/4] Atualizando o gerenciador pip no ambiente virtual...
+.venv\Scripts\python.exe -m pip install --upgrade pip
+echo.
+
+echo [4/4] Instalando dependencias do requirements.txt no ambiente virtual...
+.venv\Scripts\python.exe -m pip install -r requirements.txt
 if %errorlevel% neq 0 (
     color 0C
     echo.

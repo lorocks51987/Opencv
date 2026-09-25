@@ -757,14 +757,21 @@ class SnakeArcade:
 
             cv2.line(img, p1, p2, color, thickness, cv2.LINE_AA)
 
-        # Glow na cabeça
+        # Glow na cabeça (ROI localizado, sem copiar o frame inteiro)
         hx, hy = self.points[-1]
         glow_radius = 28 if not is_power else 34
         glow_color = (0, 255, 255) if is_power else (0, 255, 120)
 
-        overlay = img.copy()
-        cv2.circle(overlay, (hx, hy), glow_radius, glow_color, -1)
-        cv2.addWeighted(overlay, 0.4, img, 0.6, 0, img)
+        # ROI do glow limitado à região da cabeça
+        gr = glow_radius + 4
+        gx1 = max(0, hx - gr)
+        gy1 = max(0, hy - gr)
+        gx2 = min(img.shape[1], hx + gr)
+        gy2 = min(img.shape[0], hy + gr)
+        if gx2 > gx1 and gy2 > gy1:
+            glow_roi = img[gy1:gy2, gx1:gx2].copy()
+            cv2.circle(glow_roi, (hx - gx1, hy - gy1), glow_radius, glow_color, -1)
+            cv2.addWeighted(glow_roi, 0.4, img[gy1:gy2, gx1:gx2], 0.6, 0, img[gy1:gy2, gx1:gx2])
         cv2.circle(img, (hx, hy), 16, (255, 255, 255), -1, cv2.LINE_AA)
 
         # Olhos expressivos direcionados para o Donut
