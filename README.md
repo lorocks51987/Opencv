@@ -64,30 +64,30 @@ Uma experiência arcade retro-futurista altamente competitiva e viciante para at
 
 ---
 
-### 2. 🎨 Virtual Painter (Edição Stand com Envio por E-mail)
+### 2. 🎨 Virtual Painter (Edição Stand com QR Code Instantâneo)
 *Localização: `virtual_painter/VirtualPainter_Arcade.py` ou `virtual_painter/VirtualPainter.py`*
 
-Permite aos visitantes desenharem no ar como mágica e levarem sua obra para casa:
-- **Tela de Boas-Vindas & Cadastro**: Coleta o Nome e E-mail do aluno antes de iniciar a pintura (pressione Enter para avançar rapidamente).
+Permite aos visitantes desenharem no ar como mágica e levarem sua obra para casa na hora apontando a câmera do celular:
+- **Entrada Express**: Cadastro ultrarrápido apenas com Nome/Apelido (ou pressione Espaço para entrar como Visitante direto).
 - **Espelhamento de Câmera Natural**: O visitante se movimenta de forma intuitiva como diante de um espelho interativo.
 - **Modos Gestuais**:
   - ☝️ **1 Dedo (Indicador)**: Desenha na tela com traço suave e anti-tremor.
   - ✌️ **2 Dedos (Indicador + Médio)**: Modo Seleção: permite escolher cores no topo ou clicar nos botões.
 - **Paleta de Cores**: Verde Neon, Rosa Choque, Azul Ciano, Amarelo Ouro, Branco e Borracha.
-- **Moldura Oficial de ADS Unimar**: A arte é enquadrada automaticamente com logo e dados do aluno.
-- **Envio Automático por E-mail**: Disparo assíncrono (sem travar a câmera) com anexo da imagem para o visitante.
-- **Geração de Leads (`leads_visitantes.csv`)**: Salva a lista de contatos de todos os visitantes para o curso.
-- **Fila Offline (`fila_emails.json`)**: Se o stand ficar sem internet no momento, todas as artes ficam armazenadas em fila para envio posterior.
+- **Moldura Oficial de ADS Unimar**: A arte é enquadrada automaticamente em alta definição com logo, data e nome do aluno.
+- **QR Code Instantâneo na Tela Final**: O visitante aponta o celular e baixa a foto na hora:
+  - 🌐 **Nuvem (Download Direto)**: Funciona em qualquer rede 4G/5G ou Wi-Fi.
+  - 🏠 **Rede Local Stand**: Micro-servidor HTTP embutido para download direto sem precisar de internet externa.
+- **Lista de Presença (`leads_visitantes.csv`)**: Registra a lista de alunos que pintaram durante o evento.
 
 #### ⌨️ Tabela Completa de Atalhos - Virtual Painter:
 | Tecla | Ação |
 | :--- | :--- |
-| **`[ENTER]`** | Confirma Nome/E-mail no cadastro ou Finaliza e Envia a pintura |
-| **`[TAB]`** | Alterna entre campo de Nome e E-mail (no cadastro) / Alterna Tela Cheia (na pintura) |
-| **`[F]`** | Alterna Modo Tela Cheia a qualquer momento |
-| **`[ESPAÇO]`** | Inicia como Visitante direto (no cadastro) / Inverte o espelhamento da câmera (na pintura) |
+| **`[ENTER]`** | Confirma o Nome (no cadastro) / Finaliza e Gera o QR Code (na pintura) |
+| **`[ESPAÇO]`** | Inicia como Visitante direto (no cadastro) / Inverte espelho (na pintura) / Próximo aluno (no QR Code) |
+| **`[F]`** ou **`[TAB]`** | Alterna Modo Tela Cheia a qualquer momento |
 | **`[C]`** | Limpa todo o desenho da tela |
-| **`[ESC]`** | Volta à tela de boas-vindas (se estiver pintando) ou fecha o aplicativo |
+| **`[ESC]`** | Volta à tela de boas-vindas ou encerra o aplicativo |
 
 ---
 
@@ -124,13 +124,21 @@ Demonstração do potencial acadêmico, social e de inclusão da Inteligência A
 
 ## 🛠️ Instalação e Execução
 
-### 1. Pré-requisitos
-- Python 3.8+ (Recomendado: Python 3.10)
-- Webcam (resolução 720p ou 1080p, ou smartphone conectado via Iriun Webcam)
+### 1. Inicializadores de 1 Clique (Recomendado para o Stand)
+Criamos executáveis `.bat` prontos para rodar em qualquer máquina Windows:
+- 🚀 **`INSTALAR_TUDO.bat`**: Instala e atualiza automaticamente todas as dependências com 1 clique.
+- 🎮 **`INICIAR_STAND.bat`**: Abre o Menu Launcher geral com acesso a todos os projetos.
+- 🐍 **`INICIAR_COBRINHA.bat`**: Inicia diretamente o Snake Donuts Arcade.
+- 🔤 **`INICIAR_LIBRAS.bat`**: Inicia diretamente a IA de LIBRAS Stand Edition.
+- 🎨 **`INICIAR_PINTOR.bat`**: Inicia diretamente o Pintor Virtual com QR Code.
 
-### 2. Instalação das dependências
+### 2. Execução Manual via Terminal
 ```bash
+# 1. Instalar dependências
 pip install -r requirements.txt
+
+# 2. Iniciar Launcher do Stand
+python menu_stand_unimar.py
 ```
 
 ---
@@ -141,4 +149,4 @@ pip install -r requirements.txt
 2. **Distância Ideal**: Posicione a câmera na altura do peito, a cerca de **1,0 a 1,5 metro** do visitante.
 3. **Iriun Webcam**: Se utilizar o celular como webcam via Iriun, caso a imagem pareça invertida, basta pressionar **`[ESPAÇO]`** uma vez em qualquer um dos programas para corrigir instantaneamente.
 4. **Competitividade com o Recorde**: No jogo da Cobrinha, a tela de Game Over destaca a pontuação do aluno versus o **Maior Recorde de Todo o Evento**, motivando filas de estudantes querendo superar a marca máxima do stand!
-5. **Captura de Contatos**: No Pintor Virtual, garanta que os visitantes preencham o e-mail para receberem a arte com a moldura oficial do curso de ADS da Unimar.
+5. **Engajamento com o QR Code**: No Pintor Virtual, motive o visitante a apontar a câmera do celular para o QR Code da tela final para baixar a foto na hora e postar no Instagram marcando `@unimar`!

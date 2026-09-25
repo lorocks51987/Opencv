@@ -1,15 +1,16 @@
 """
 =============================================================================
-     VIRTUAL PAINTER - ADS UNIMAR (COM CAPTURA E ENVIO POR E-MAIL)
+     VIRTUAL PAINTER - ADS UNIMAR (EDIÇÃO STAND COM QR CODE INSTANTÂNEO)
 =============================================================================
 Recursos da versão:
-- Tela de Cadastro Inicial: Coleta Nome e E-mail do aluno antes de pintar.
+- Tela de Entrada Express: Cadastro rápido apenas com Nome/Apelido do visitante.
 - Pintura no ar com OpenCV & MediaPipe (1 dedo = desenha, 2 dedos = seleciona cor).
-- Moldura Oficial com tema "ADS • UNIMAR ABERTA" aplicada sobre a arte.
-- Exportação em alta qualidade para 'galeria_visitantes/' e planilha 'leads_visitantes.csv'.
-- Disparo de E-mail automático (em thread assíncrona, sem travar o vídeo).
-- Suporte a fila offline se não houver internet no momento do evento.
-- Botão "Limpar Tela", "Finalizar e Enviar" e suporte a tela cheia (F).
+- Moldura Oficial de Alta Resolução "ADS • UNIMAR ABERTA" aplicada sobre a arte.
+- QR Code Instantâneo na Tela Final gerado nativamente via OpenCV:
+  1. Nuvem (4G/5G/Wi-Fi): Upload rápido e seguro para download direto no smartphone.
+  2. Rede Local: Micro-servidor HTTP embutido para download direto na rede do stand.
+- O aluno aponta a câmera do celular para o QR Code e salva a foto na hora!
+- 60 FPS estável, atalhos padronizados (F / TAB / ESPAÇO / C / ENTER / ESC).
 =============================================================================
 """
 
@@ -18,13 +19,13 @@ import numpy as np
 import os
 import sys
 import time
-import json
 import csv
+import socket
 import threading
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.image import MIMEImage
+import urllib.request
+import json
+from http.server import SimpleHTTPRequestHandler
+from socketserver import TCPServer
 
 # Carrega módulo de rastreamento de mãos
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -35,8 +36,6 @@ import HandTrackingModule as htm
 # Pastas de dados
 FOLDER_SAVED = os.path.join(SCRIPT_DIR, "galeria_visitantes")
 FILE_CSV = os.path.join(SCRIPT_DIR, "leads_visitantes.csv")
-FILE_CONFIG = os.path.join(SCRIPT_DIR, "config_email.json")
-FILE_QUEUE = os.path.join(SCRIPT_DIR, "fila_emails.json")
 os.makedirs(FOLDER_SAVED, exist_ok=True)
 
 # Paleta de Cores (Formato BGR)
@@ -50,93 +49,120 @@ CORES = [
 ]
 
 # =============================================================================
-# MOTOR DE ENVIO DE E-MAIL (ASSÍNCRONO)
+# MICRO SERVIDOR HTTP LOCAL PARA DOWNLOAD NA REDE DO STAND
 # =============================================================================
-def enviar_email_async(destinatario, nome_aluno, caminho_imagem):
-    threading.Thread(
-        target=_worker_envio_email,
-        args=(destinatario, nome_aluno, caminho_imagem),
-        daemon=True
-    ).start()
+PORTA_LOCAL = 8080
 
-def _worker_envio_email(destinatario, nome_aluno, caminho_imagem):
-    if not os.path.exists(FILE_CONFIG):
-        return
-
+def obter_ip_local():
+    """Detecta o IP local da máquina na rede Wi-Fi/Ethernet."""
     try:
-        with open(FILE_CONFIG, "r", encoding="utf-8") as f:
-            cfg = json.load(f)
-    except Exception as e:
-        print(f"[ERRO CONFIG] {e}")
-        return
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
 
-    # Se o envio real não estiver ativado ou e-mail for inválido
-    if not cfg.get("habilitar_envio_real", False) or "@" not in destinatario:
-        print(f"[FILA] E-mail para {destinatario} gravado na fila (envio real desativado no config_email.json).")
-        _salvar_fila_email(destinatario, nome_aluno, caminho_imagem)
-        return
+class StandHTTPHandler(SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=FOLDER_SAVED, **kwargs)
 
-    try:
-        remetente = cfg.get("email_remetente")
-        senha = cfg.get("senha_app")
-        servidor_smtp = cfg.get("servidor_smtp", "smtp.gmail.com")
-        porta = cfg.get("porta_smtp", 587)
-        assunto = cfg.get("assunto", "Sua Arte na Unimar Aberta! 🎨")
-        corpo_template = cfg.get("mensagem_corpo", "Ola {nome}!\n\nAqui esta a sua arte criada no stand de ADS!")
-        corpo = corpo_template.format(nome=nome_aluno)
+    def log_message(self, format, *args):
+        # Silencia logs de requisição no console para manter terminal limpo
+        pass
 
-        msg = MIMEMultipart()
-        msg["From"] = remetente
-        msg["To"] = destinatario
-        msg["Subject"] = assunto
-        msg.attach(MIMEText(corpo, "plain", "utf-8"))
-
-        if os.path.exists(caminho_imagem):
-            with open(caminho_imagem, "rb") as img_f:
-                anexo = MIMEImage(img_f.read(), name=os.path.basename(caminho_imagem))
-                msg.attach(anexo)
-
-        server = smtplib.SMTP(servidor_smtp, porta, timeout=10)
-        server.starttls()
-        server.login(remetente, senha)
-        server.sendmail(remetente, [destinatario], msg.as_string())
-        server.quit()
-        print(f"[SUCESSO] E-mail enviado para {destinatario}!")
-    except Exception as e:
-        print(f"[FALHA ENVIO] {e}. Salvando na fila para reenvio posterior.")
-        _salvar_fila_email(destinatario, nome_aluno, caminho_imagem)
-
-def _salvar_fila_email(destinatario, nome, img_path):
-    fila = []
-    if os.path.exists(FILE_QUEUE):
+def iniciar_servidor_local():
+    """Inicia servidor HTTP em background servindo a pasta da galeria."""
+    global PORTA_LOCAL
+    for porta in [8080, 8000, 8888, 9000]:
         try:
-            with open(FILE_QUEUE, "r", encoding="utf-8") as f:
-                fila = json.load(f)
-        except Exception:
-            fila = []
-    fila.append({
-        "destinatario": destinatario,
-        "nome": nome,
-        "caminho_imagem": img_path,
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
-    })
-    try:
-        with open(FILE_QUEUE, "w", encoding="utf-8") as f:
-            json.dump(fila, f, indent=2, ensure_ascii=False)
-    except Exception as e:
-        print(f"[ERRO FILA] {e}")
+            httpd = TCPServer(("", porta), StandHTTPHandler)
+            PORTA_LOCAL = porta
+            t = threading.Thread(target=httpd.serve_forever, daemon=True)
+            t.start()
+            print(f"[SERVIDOR LOCAL] Galeria online em http://{obter_ip_local()}:{PORTA_LOCAL}/")
+            return
+        except OSError:
+            continue
+    print("[SERVIDOR LOCAL] Nenhuma porta disponível para o servidor local.")
 
-def registrar_lead_csv(nome, email, arquivo):
+# Inicia o micro servidor web silencioso em background
+iniciar_servidor_local()
+
+# =============================================================================
+# GERADOR DE QR CODE E UPLOADER EM NUVEM
+# =============================================================================
+_qr_encoder = cv2.QRCodeEncoder_create()
+
+def gerar_imagem_qr_code(url, tamanho=220):
+    """Gera matriz BGR do QR Code em alta definição com borda de leitura branca."""
+    try:
+        qr = _qr_encoder.encode(url)
+        if qr is None or qr.size == 0:
+            return None
+        # Redimensiona com interpolação vizinho mais próximo para módulos 100% nítidos
+        qr_redim = cv2.resize(qr, (tamanho, tamanho), interpolation=cv2.INTER_NEAREST)
+        # Borda silenciosa branca essencial para escaneamento rápido de câmeras mobile
+        borda = 14
+        qr_com_borda = cv2.copyMakeBorder(
+            qr_redim, borda, borda, borda, borda, cv2.BORDER_CONSTANT, value=255
+        )
+        return cv2.cvtColor(qr_com_borda, cv2.COLOR_GRAY2BGR)
+    except Exception as e:
+        print(f"[ERRO QR CODE] {e}")
+        return None
+
+def upload_nuvem_async(caminho_imagem, callback_sucesso):
+    """Faz upload da imagem para um endpoint seguro e gratuito de download direto."""
+    def _worker():
+        try:
+            url_api = "https://tmpfiles.org/api/v1/upload"
+            boundary = "----WebKitFormBoundaryUnimarStand"
+            nome_arq = os.path.basename(caminho_imagem)
+            
+            with open(caminho_imagem, "rb") as f:
+                img_bytes = f.read()
+
+            body = (
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="file"; filename="{nome_arq}"\r\n'
+                f"Content-Type: image/png\r\n\r\n"
+            ).encode("utf-8") + img_bytes + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+            req = urllib.request.Request(
+                url_api,
+                data=body,
+                headers={
+                    "Content-Type": f"multipart/form-data; boundary={boundary}",
+                    "User-Agent": "ADS-Unimar-Stand"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=4.5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                orig_url = data.get("data", {}).get("url", "")
+                if orig_url:
+                    # Formata URL de download direto para abrir imediatamente no navegador do celular
+                    dl_url = orig_url.replace("tmpfiles.org/", "tmpfiles.org/dl/")
+                    callback_sucesso(dl_url)
+        except Exception:
+            # Em caso de falha de conexão (offline), mantém o link local já configurado
+            pass
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+def registrar_lead_csv(nome, arquivo):
+    """Registra a participação do visitante na planilha para controle do curso."""
     novo = not os.path.exists(FILE_CSV)
     try:
         with open(FILE_CSV, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             if novo:
-                writer.writerow(["Data", "Hora", "Nome", "Email", "Arquivo"])
+                writer.writerow(["Data", "Hora", "Nome", "Arquivo"])
             agora = time.localtime()
             data_str = time.strftime("%d/%m/%Y", agora)
             hora_str = time.strftime("%H:%M:%S", agora)
-            writer.writerow([data_str, hora_str, nome, email, arquivo])
+            writer.writerow([data_str, hora_str, nome, arquivo])
     except Exception as e:
         print(f"[ERRO CSV] {e}")
 
@@ -164,6 +190,16 @@ def desenhar_retangulo_arredondado(img, pt1, pt2, cor_fundo, cor_borda, raio=14,
 
     if espessura_borda > 0:
         cv2.rectangle(img, (x1, y1), (x2, y2), cor_borda, espessura_borda, cv2.LINE_AA)
+        c_len = min(16, w // 4, h // 4)
+        c_cor = (min(255, cor_borda[0] + 50), min(255, cor_borda[1] + 50), min(255, cor_borda[2] + 50))
+        cv2.line(img, (x1, y1), (x1 + c_len, y1), c_cor, 2, cv2.LINE_AA)
+        cv2.line(img, (x1, y1), (x1, y1 + c_len), c_cor, 2, cv2.LINE_AA)
+        cv2.line(img, (x2, y1), (x2 - c_len, y1), c_cor, 2, cv2.LINE_AA)
+        cv2.line(img, (x2, y1), (x2, y1 + c_len), c_cor, 2, cv2.LINE_AA)
+        cv2.line(img, (x1, y2), (x1 + c_len, y2), c_cor, 2, cv2.LINE_AA)
+        cv2.line(img, (x1, y2), (x1, y2 - c_len), c_cor, 2, cv2.LINE_AA)
+        cv2.line(img, (x2, y2), (x2 - c_len, y2), c_cor, 2, cv2.LINE_AA)
+        cv2.line(img, (x2, y2), (x2, y2 - c_len), c_cor, 2, cv2.LINE_AA)
 
     return img
 
@@ -184,7 +220,7 @@ def encontrar_camera():
 # =============================================================================
 # GERAÇÃO DA MOLDURA OFICIAL DE ADS UNIMAR
 # =============================================================================
-def gerar_moldura_oficial(imgCanvas, nome_aluno, email_aluno):
+def gerar_moldura_oficial(imgCanvas, nome_aluno):
     h, w = imgCanvas.shape[:2]
 
     # Cria fundo temático escuro
@@ -226,12 +262,12 @@ def gerar_moldura_oficial(imgCanvas, nome_aluno, email_aluno):
     cv2.line(resultado, (0, h - footer_bar), (w, h - footer_bar), (0, 220, 255), 2)
 
     agora_txt = time.strftime("%d/%m/%Y as %H:%M")
-    autor_txt = f"Artista: {nome_aluno} ({email_aluno})"
+    autor_txt = f"Artista: {nome_aluno}"
     info_txt = f"Criado em: {agora_txt} * Unimar"
 
     cv2.putText(
         resultado, autor_txt, (30, h - 22),
-        cv2.FONT_HERSHEY_DUPLEX, 0.6, (0, 255, 120), 1, cv2.LINE_AA
+        cv2.FONT_HERSHEY_DUPLEX, 0.62, (0, 255, 140), 1, cv2.LINE_AA
     )
     cv2.putText(
         resultado, info_txt, (w - 380, h - 22),
@@ -247,10 +283,10 @@ def gerar_moldura_oficial(imgCanvas, nome_aluno, email_aluno):
 # FLUXO PRINCIPAL DO VIRTUAL PAINTER
 # =============================================================================
 def main():
-    print("Iniciando Virtual Painter com Envio por E-mail (ADS Unimar)...")
+    print("Iniciando Virtual Painter com QR Code Instantâneo (ADS Unimar)...")
     cap = encontrar_camera()
     if cap is None:
-        print("[ERRO] Nenhuma câmera encontrada!")
+        print("[ERRO] Nenhuma câmera compatível detectada.")
         return
 
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
@@ -258,20 +294,18 @@ def main():
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
     detector = htm.handDetector(detectionCon=0.8, trackCon=0.7)
-    nome_janela = "Virtual Painter com E-mail | ADS UNIMAR ABERTA"
+    nome_janela = "Virtual Painter com QR Code | ADS UNIMAR ABERTA"
     cv2.namedWindow(nome_janela, cv2.WINDOW_NORMAL)
     fullscreen = False
     espelhar_video = True
 
     # Estados
-    # 0 = Tela de Cadastro (Nome e Email)
+    # 0 = Tela de Entrada / Nome
     # 1 = Tela de Pintura
-    # 2 = Tela de Sucesso / Envio
+    # 2 = Tela de Sucesso / QR Code
     estado = 0
 
     input_nome = ""
-    input_email = ""
-    campo_ativo = 0  # 0 = Nome, 1 = Email
 
     # Variáveis da Pintura
     cor_atual_idx = 0
@@ -285,6 +319,19 @@ def main():
     msg_timer = time.time() + 4.0
     timer_sucesso = 0
     caminho_salvo_recente = ""
+
+    # QR Code State 2
+    qr_img_atual = None
+    url_download_atual = ""
+    status_qr_txt = "Gerando QR Code..."
+
+    def atualizar_url_online(nova_url):
+        nonlocal qr_img_atual, url_download_atual, status_qr_txt
+        url_download_atual = nova_url
+        qr_novo = gerar_imagem_qr_code(nova_url, tamanho=220)
+        if qr_novo is not None:
+            qr_img_atual = qr_novo
+            status_qr_txt = "Link Online Pronto (Download Direto)"
 
     fps_tempo = time.time()
     fps_cont = 0
@@ -306,15 +353,15 @@ def main():
             imgCanvas = cv2.resize(imgCanvas, (w, h))
 
         # ---------------------------------------------------------------------
-        # ESTADO 0: TELA DE CADASTRO DO ALUNO (CYBER-CLEAN GLASSMORPHISM)
+        # ESTADO 0: TELA DE ENTRADA / NOME (CYBER-CLEAN GLASSMORPHISM)
         # ---------------------------------------------------------------------
         if estado == 0:
             scrim = np.full(img.shape, (10, 12, 20), dtype=np.uint8)
             cv2.addWeighted(scrim, 0.78, img, 0.22, 0, img)
 
             # Card Central Glassmorphism
-            card_w = 700
-            card_h = 420
+            card_w = 720
+            card_h = 360
             cx = w // 2 - card_w // 2
             cy = h // 2 - card_h // 2
 
@@ -333,120 +380,98 @@ def main():
                 cv2.FONT_HERSHEY_DUPLEX, 0.85, (255, 255, 255), 2, cv2.LINE_AA
             )
             cv2.putText(
-                img, "Desenhe no ar com as maos e receba sua obra no seu e-mail!", (cx + 40, cy + 108),
-                cv2.FONT_HERSHEY_DUPLEX, 0.50, (0, 255, 140), 1, cv2.LINE_AA
+                img, "Desenhe no ar com as maos e baixe sua arte direto no celular via QR Code!",
+                (cx + 40, cy + 108), cv2.FONT_HERSHEY_DUPLEX, 0.48, (0, 255, 140), 1, cv2.LINE_AA
             )
-            cv2.line(img, (cx + 40, cy + 122), (cx + card_w - 40, cy + 122), (45, 50, 70), 1)
+            cv2.line(img, (cx + 40, cy + 124), (cx + card_w - 40, cy + 124), (45, 50, 70), 1)
 
-            # Campo 1: NOME
-            box1_y = cy + 148
-            border1 = (0, 255, 140) if campo_ativo == 0 else (60, 65, 80)
+            # Campo Único: NOME
+            box1_y = cy + 155
             desenhar_retangulo_arredondado(
-                img, (cx + 40, box1_y), (cx + card_w - 40, box1_y + 48),
-                cor_fundo=(16, 20, 32), cor_borda=border1, raio=10, alpha=0.90, espessura_borda=2 if campo_ativo == 0 else 1
+                img, (cx + 40, box1_y), (cx + card_w - 40, box1_y + 54),
+                cor_fundo=(16, 20, 32), cor_borda=(0, 255, 140), raio=10, alpha=0.90, espessura_borda=2
             )
             cv2.putText(
-                img, "SEU NOME:", (cx + 45, box1_y - 8),
+                img, "SEU NOME / APELIDO:", (cx + 45, box1_y - 10),
                 cv2.FONT_HERSHEY_DUPLEX, 0.48, (200, 200, 200), 1, cv2.LINE_AA
             )
-            nome_display = input_nome if input_nome else "Clique aqui e digite seu nome..."
-            cor_txt1 = (255, 255, 255) if input_nome else (130, 130, 130)
-            cursor1 = "|" if (campo_ativo == 0 and int(time.time() * 2) % 2 == 0) else ""
+            nome_disp = input_nome if input_nome else "Digite aqui ou pressione ESPACO para entrar direto..."
+            cor_txt = (255, 255, 255) if input_nome else (100, 110, 130)
+            cursor = "|" if (int(time.time() * 2) % 2 == 0) else ""
             cv2.putText(
-                img, nome_display + cursor1, (cx + 55, box1_y + 32),
-                cv2.FONT_HERSHEY_DUPLEX, 0.70, cor_txt1, 1, cv2.LINE_AA
+                img, f"{nome_disp}{cursor}", (cx + 55, box1_y + 36),
+                cv2.FONT_HERSHEY_DUPLEX, 0.62, cor_txt, 1, cv2.LINE_AA
             )
 
-            # Campo 2: E-MAIL
-            box2_y = cy + 238
-            border2 = (0, 255, 140) if campo_ativo == 1 else (60, 65, 80)
-            desenhar_retangulo_arredondado(
-                img, (cx + 40, box2_y), (cx + card_w - 40, box2_y + 48),
-                cor_fundo=(16, 20, 32), cor_borda=border2, raio=10, alpha=0.90, espessura_borda=2 if campo_ativo == 1 else 1
+            # Instruções e Atalhos no Rodapé do Card
+            cv2.line(img, (cx + 40, cy + 245), (cx + card_w - 40, cy + 245), (45, 50, 70), 1)
+            cv2.putText(
+                img, "[ENTER] Iniciar com este Nome   |   [ESPACO] Entrar como Visitante Direto",
+                (cx + 45, cy + 278), cv2.FONT_HERSHEY_DUPLEX, 0.50, (0, 255, 140), 1, cv2.LINE_AA
             )
             cv2.putText(
-                img, "SEU E-MAIL (PARA RECEBER A ARTE):", (cx + 45, box2_y - 8),
-                cv2.FONT_HERSHEY_DUPLEX, 0.48, (200, 200, 200), 1, cv2.LINE_AA
-            )
-            email_display = input_email if input_email else "exemplo@gmail.com..."
-            cor_txt2 = (255, 255, 255) if input_email else (130, 130, 130)
-            cursor2 = "|" if (campo_ativo == 1 and int(time.time() * 2) % 2 == 0) else ""
-            cv2.putText(
-                img, email_display + cursor2, (cx + 55, box2_y + 32),
-                cv2.FONT_HERSHEY_DUPLEX, 0.70, cor_txt2, 1, cv2.LINE_AA
-            )
-
-            # Botão Começar / Instruções
-            cv2.putText(
-                img, "[TAB]: Trocar de Campo  |  [ENTER]: Comecar a Pintar",
-                (cx + 95, cy + 335), cv2.FONT_HERSHEY_DUPLEX, 0.58, (0, 220, 255), 1, cv2.LINE_AA
-            )
-            cv2.putText(
-                img, "Ou pressione [ESPACO] para pintar sem cadastro",
-                (cx + 130, cy + 375), cv2.FONT_HERSHEY_DUPLEX, 0.48, (160, 165, 180), 1, cv2.LINE_AA
+                img, "Dica: Ao terminar sua pintura, aponte a camera do celular para levar a foto!",
+                (cx + 45, cy + 315), cv2.FONT_HERSHEY_DUPLEX, 0.44, (180, 185, 200), 1, cv2.LINE_AA
             )
 
         # ---------------------------------------------------------------------
-        # ESTADO 1: TELA DE PINTURA VIRTUAL
+        # ESTADO 1: TELA DE PINTURA (CYBER-CLEAN GLASSMORPHISM)
         # ---------------------------------------------------------------------
         elif estado == 1:
-            img = detector.findHands(img, draw=False)
-            lmList, _ = detector.findPosition(img, draw=False)
+            header_h = 75
+            btn_w = w // (len(CORES) + 2)
 
-            num_botoes = len(CORES) + 2  # 6 Cores + Limpar + Enviar
-            btn_w = w // num_botoes
-            header_h = 76
-            modo = "NEUTRO"
+            img = detector.findHands(img)
+            lmList, bbox = detector.findPosition(img, draw=False)
 
             if len(lmList) == 21:
                 x1, y1 = lmList[8][1:]   # Indicador
                 x2, y2 = lmList[12][1:]  # Médio
                 fingers = detector.fingersUp()
 
-                # MODO SELEÇÃO: Indicador + Médio levantados
+                # Modo Seleção de Cores/Botões (Indicador + Médio erguidos)
                 if fingers[1] and fingers[2]:
-                    modo = "SELECAO"
                     xp, yp = 0, 0
+                    cv2.rectangle(img, (x1 - 10, y1 - 10), (x2 + 10, y2 + 10), drawColor, 2, cv2.LINE_AA)
+                    cv2.circle(img, ((x1 + x2) // 2, (y1 + y2) // 2), 6, (0, 255, 140), -1, cv2.LINE_AA)
 
                     if y1 < header_h:
-                        btn_idx = x1 // btn_w
-                        if btn_idx < len(CORES):
-                            cor_atual_idx = btn_idx
+                        col_idx = x1 // btn_w
+                        if col_idx < len(CORES):
+                            cor_atual_idx = col_idx
                             drawColor = CORES[cor_atual_idx]["bgr"]
-                            msg_status = f"Cor Selecionada: {CORES[cor_atual_idx]['nome']}"
-                            msg_timer = time.time() + 2.0
-                        elif btn_idx == len(CORES):
-                            # Limpar
+                        elif col_idx == len(CORES):
+                            # Botão Limpar
                             imgCanvas = np.zeros((h, w, 3), np.uint8)
-                            msg_status = "Canvas Limpo!"
+                            msg_status = "Canvas Limpo com Sucesso!"
                             msg_timer = time.time() + 2.0
-                        elif btn_idx == len(CORES) + 1:
-                            # Finalizar e Enviar
+                        elif col_idx >= len(CORES) + 1:
+                            # Botão Finalizar e Gerar QR Code
                             estado = 2
-                            timer_sucesso = time.time() + 4.0
+                            timer_sucesso = time.time() + 15.0  # 15s para escanear com calma
 
-                    cv2.circle(img, (x1, y1), 8, (255, 255, 255), -1, cv2.LINE_AA)
-                    cv2.circle(img, (x2, y2), 8, (255, 255, 255), -1, cv2.LINE_AA)
-                    cv2.line(img, (x1, y1), (x2, y2), (0, 220, 255), 3, cv2.LINE_AA)
-
-                # MODO DESENHO: Apenas indicador levantado
+                # Modo Pintura (Apenas Indicador erguido)
                 elif fingers[1] and not fingers[2]:
-                    modo = "DESENHANDO"
-                    cv2.circle(img, (x1, y1), brushThickness // 2 + 5, (255, 255, 255), 2, cv2.LINE_AA)
-                    cv2.circle(img, (x1, y1), brushThickness // 2 + 2, drawColor, -1, cv2.LINE_AA)
+                    # Retícula de mira precisa
+                    cv2.circle(img, (x1, y1), 8, drawColor, cv2.FILLED, cv2.LINE_AA)
+                    cv2.circle(img, (x1, y1), 14, (255, 255, 255), 1, cv2.LINE_AA)
 
                     if xp == 0 and yp == 0:
                         xp, yp = x1, y1
 
-                    thick = eraseThickness if drawColor == (0, 0, 0) else brushThickness
-                    cv2.line(imgCanvas, (xp, yp), (x1, y1), drawColor, thick, cv2.LINE_AA)
+                    if drawColor == (0, 0, 0):
+                        cv2.line(img, (xp, yp), (x1, y1), drawColor, eraseThickness)
+                        cv2.line(imgCanvas, (xp, yp), (x1, y1), drawColor, eraseThickness)
+                    else:
+                        cv2.line(img, (xp, yp), (x1, y1), drawColor, brushThickness)
+                        cv2.line(imgCanvas, (xp, yp), (x1, y1), drawColor, brushThickness)
                     xp, yp = x1, y1
                 else:
                     xp, yp = 0, 0
             else:
                 xp, yp = 0, 0
 
-            # Mesclagem do Canvas com a imagem da câmera
+            # Mescla Canvas na visualização da Câmera
             imgGray = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2GRAY)
             _, imgInv = cv2.threshold(imgGray, 10, 255, cv2.THRESH_BINARY_INV)
             imgInv = cv2.cvtColor(imgInv, cv2.COLOR_GRAY2BGR)
@@ -490,15 +515,15 @@ def main():
                 cv2.FONT_HERSHEY_DUPLEX, 0.40, (255, 255, 255), 1, cv2.LINE_AA
             )
 
-            # Botão Finalizar e Enviar (ENTER)
+            # Botão Finalizar e Gerar QR Code (ENTER)
             bx_send = (len(CORES) + 1) * btn_w
             desenhar_retangulo_arredondado(
                 img, (bx_send + 4, 8), (w - 6, header_h - 8),
                 cor_fundo=(10, 45, 25), cor_borda=(0, 255, 140), raio=10, alpha=0.92, espessura_borda=2
             )
             cv2.putText(
-                img, "ENVIAR (ENTER)", (bx_send + 10, header_h // 2 + 5),
-                cv2.FONT_HERSHEY_DUPLEX, 0.42, (255, 255, 255), 1, cv2.LINE_AA
+                img, "QR CODE (ENTER)", (bx_send + 10, header_h // 2 + 5),
+                cv2.FONT_HERSHEY_DUPLEX, 0.40, (255, 255, 255), 1, cv2.LINE_AA
             )
 
             # RODAPÉ CYBER-CLEAN PADRONIZADO (38px)
@@ -523,40 +548,45 @@ def main():
                 cv2.FONT_HERSHEY_DUPLEX, 0.44, (0, 220, 255), 1, cv2.LINE_AA
             )
             cv2.putText(
-                img, "[1 Dedo: Pintar] | [2 Dedos: Paleta] | [C: Limpar] | [ENTER: Enviar]",
+                img, "[1 Dedo: Pintar] | [2 Dedos: Paleta] | [C: Limpar] | [ENTER: QR Code]",
                 (770, h - 14), cv2.FONT_HERSHEY_DUPLEX, 0.40, (180, 185, 200), 1, cv2.LINE_AA
             )
 
         # ---------------------------------------------------------------------
-        # ESTADO 2: FINALIZAÇÃO, MOLDURA E ENVIO
+        # ESTADO 2: FINALIZAÇÃO, MOLDURA E QR CODE INSTANTÂNEO
         # ---------------------------------------------------------------------
         elif estado == 2:
             if caminho_salvo_recente == "":
                 nome_aluno_final = input_nome.strip() or "Visitante ADS"
-                email_aluno_final = input_email.strip() or "visitante@unimar.br"
-
                 timestamp_arq = time.strftime("%Y%m%d_%H%M%S")
                 nome_sanitizado = "".join(c for c in nome_aluno_final if c.isalnum() or c in " _-")[:20]
                 nome_arq = f"arte_{nome_sanitizado}_{timestamp_arq}.png"
                 caminho_salvo_recente = os.path.join(FOLDER_SAVED, nome_arq)
 
-                # Gera a moldura
-                arte_final = gerar_moldura_oficial(imgCanvas, nome_aluno_final, email_aluno_final)
+                # Gera a moldura oficial e salva o arquivo
+                arte_final = gerar_moldura_oficial(imgCanvas, nome_aluno_final)
                 cv2.imwrite(caminho_salvo_recente, arte_final)
 
-                # Registra Lead no CSV
-                registrar_lead_csv(nome_aluno_final, email_aluno_final, nome_arq)
+                # Registra Lead no CSV de presença
+                registrar_lead_csv(nome_aluno_final, nome_arq)
 
-                # Dispara o envio por e-mail em background
-                enviar_email_async(email_aluno_final, nome_aluno_final, caminho_salvo_recente)
+                # 1. URL Local imediata
+                ip_local = obter_ip_local()
+                url_local = f"http://{ip_local}:{PORTA_LOCAL}/{nome_arq}"
+                url_download_atual = url_local
+                status_qr_txt = f"Rede do Stand ({ip_local})"
+                qr_img_atual = gerar_imagem_qr_code(url_local, tamanho=220)
+
+                # 2. Upload para nuvem em background (para celular em 4G/5G baixar direto)
+                upload_nuvem_async(caminho_salvo_recente, atualizar_url_online)
 
             # Scrim escuro
             scrim = np.full(img.shape, (10, 12, 18), dtype=np.uint8)
             cv2.addWeighted(scrim, 0.85, img, 0.15, 0, img)
 
-            # Card Central Glassmorphism
-            card_w = 640
-            card_h = 330
+            # Card Central Glassmorphism para QR Code
+            card_w = 780
+            card_h = 380
             cx = w // 2 - card_w // 2
             cy = h // 2 - card_h // 2
 
@@ -565,42 +595,67 @@ def main():
                 cor_fundo=(12, 16, 26), cor_borda=(0, 255, 140), raio=16, alpha=0.94, espessura_borda=2
             )
 
+            # LADO ESQUERDO: Textos e Informações
             cv2.putText(
-                img, "ARTE CRIADA COM SUCESSO!", (cx + 40, cy + 55),
-                cv2.FONT_HERSHEY_DUPLEX, 0.90, (0, 255, 140), 2, cv2.LINE_AA
+                img, "ARTE PRONTA COM SUCESSO!", (cx + 35, cy + 48),
+                cv2.FONT_HERSHEY_DUPLEX, 0.85, (0, 255, 140), 2, cv2.LINE_AA
             )
-            cv2.line(img, (cx + 35, cy + 78), (cx + card_w - 35, cy + 78), (45, 55, 75), 1)
+            cv2.line(img, (cx + 35, cy + 68), (cx + card_w - 35, cy + 68), (45, 55, 75), 1)
 
             cv2.putText(
-                img, f"Artista: {input_nome or 'Visitante'}", (cx + 40, cy + 120),
-                cv2.FONT_HERSHEY_DUPLEX, 0.65, (255, 255, 255), 1, cv2.LINE_AA
+                img, f"Artista: {input_nome or 'Visitante ADS'}", (cx + 35, cy + 110),
+                cv2.FONT_HERSHEY_DUPLEX, 0.68, (255, 255, 255), 1, cv2.LINE_AA
             )
             cv2.putText(
-                img, f"E-mail: {input_email or 'Nao informado'}", (cx + 40, cy + 160),
-                cv2.FONT_HERSHEY_DUPLEX, 0.60, (0, 220, 255), 1, cv2.LINE_AA
+                img, "Aponte a camera do seu celular:", (cx + 35, cy + 155),
+                cv2.FONT_HERSHEY_DUPLEX, 0.58, (0, 220, 255), 1, cv2.LINE_AA
             )
             cv2.putText(
-                img, "Sua obra foi salva com a moldura oficial de ADS!", (cx + 40, cy + 205),
-                cv2.FONT_HERSHEY_DUPLEX, 0.52, (200, 205, 215), 1, cv2.LINE_AA
+                img, "Escaneie o QR Code ao lado para baixar", (cx + 35, cy + 190),
+                cv2.FONT_HERSHEY_DUPLEX, 0.50, (200, 205, 220), 1, cv2.LINE_AA
             )
             cv2.putText(
-                img, "Obrigado por visitar o stand de ADS da Unimar!", (cx + 40, cy + 245),
-                cv2.FONT_HERSHEY_DUPLEX, 0.55, (0, 255, 140), 1, cv2.LINE_AA
+                img, "sua arte com a moldura oficial de ADS!", (cx + 35, cy + 218),
+                cv2.FONT_HERSHEY_DUPLEX, 0.50, (200, 205, 220), 1, cv2.LINE_AA
             )
 
-            # Barra de progresso para próximo aluno
+            # Tag de Status do Link
+            cv2.putText(
+                img, f"Status: {status_qr_txt}", (cx + 35, cy + 265),
+                cv2.FONT_HERSHEY_DUPLEX, 0.44, (0, 255, 140), 1, cv2.LINE_AA
+            )
+
+            cv2.putText(
+                img, "[ESPACO] ou [ENTER] para o proximo aluno", (cx + 35, cy + 305),
+                cv2.FONT_HERSHEY_DUPLEX, 0.48, (255, 200, 0), 1, cv2.LINE_AA
+            )
+
+            # LADO DIREITO: QR Code Renderizado
+            if qr_img_atual is not None:
+                qrh, qrw = qr_img_atual.shape[:2]
+                qrx = cx + card_w - qrw - 35
+                qry = cy + 85
+                img[qry:qry + qrh, qrx:qrx + qrw] = qr_img_atual
+                cv2.rectangle(img, (qrx - 2, qry - 2), (qrx + qrw + 2, qry + qrh + 2), (0, 255, 140), 1, cv2.LINE_AA)
+                cv2.putText(
+                    img, "ESCANEIE COM O CELULAR", (qrx + 15, qry + qrh + 24),
+                    cv2.FONT_HERSHEY_DUPLEX, 0.42, (0, 255, 140), 1, cv2.LINE_AA
+                )
+
+            # Barra de progresso para retorno automático
             rem_t = max(0.0, timer_sucesso - time.time())
-            prog_t = 1.0 - (rem_t / 4.0)
-            cv2.rectangle(img, (cx + 40, cy + 280), (cx + card_w - 40, cy + 292), (25, 30, 42), -1)
-            cv2.rectangle(img, (cx + 40, cy + 280), (cx + 40 + int((card_w - 80) * prog_t), cy + 292), (0, 255, 140), -1)
+            dur_total = 15.0
+            prog_t = 1.0 - (rem_t / dur_total)
+            bar_y = cy + card_h - 22
+            cv2.rectangle(img, (cx + 35, bar_y), (cx + card_w - 35, bar_y + 10), (25, 30, 42), -1)
+            cv2.rectangle(img, (cx + 35, bar_y), (cx + 35 + int((card_w - 70) * prog_t), bar_y + 10), (0, 255, 140), -1)
 
-            # Retorno automático após 4 segundos para o próximo aluno
+            # Retorno automático após 15 segundos para o próximo aluno
             if time.time() > timer_sucesso:
                 estado = 0
                 input_nome = ""
-                input_email = ""
-                campo_ativo = 0
                 caminho_salvo_recente = ""
+                qr_img_atual = None
                 imgCanvas = np.zeros((h, w, 3), np.uint8)
 
         # Contador de FPS
@@ -623,45 +678,33 @@ def main():
         if key == 27:  # ESC
             if estado == 1 or estado == 2:
                 estado = 0
+                caminho_salvo_recente = ""
+                qr_img_atual = None
             else:
                 break
         elif key == 9 or key == ord('f') or key == ord('F'):  # TAB / F
-            if estado == 0 and key == 9:
-                campo_ativo = 1 - campo_ativo
+            fullscreen = not fullscreen
+            if fullscreen:
+                cv2.setWindowProperty(nome_janela, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
             else:
-                fullscreen = not fullscreen
-                if fullscreen:
-                    cv2.setWindowProperty(nome_janela, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-                else:
-                    cv2.setWindowProperty(nome_janela, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+                cv2.setWindowProperty(nome_janela, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
 
-        # Estado 0: Digitação de Cadastro
+        # Estado 0: Digitação do Nome
         if estado == 0:
             if key in [13, 10]:  # ENTER
                 estado = 1
                 imgCanvas = np.zeros((h, w, 3), np.uint8)
             elif key == 32:  # ESPAÇO
-                if not input_nome and not input_email:
+                if not input_nome:
                     estado = 1
                     imgCanvas = np.zeros((h, w, 3), np.uint8)
                 else:
-                    if campo_ativo == 0:
-                        input_nome += " "
-                    else:
-                        input_email += " "
+                    input_nome += " "
             elif key == 8:  # Backspace
-                if campo_ativo == 0:
-                    input_nome = input_nome[:-1]
-                else:
-                    input_email = input_email[:-1]
+                input_nome = input_nome[:-1]
             elif 32 < key <= 126:
-                char = chr(key)
-                if campo_ativo == 0:
-                    if len(input_nome) < 28:
-                        input_nome += char
-                else:
-                    if len(input_email) < 35:
-                        input_email += char
+                if len(input_nome) < 26:
+                    input_nome += chr(key)
 
         # Estado 1: Pintura
         elif estado == 1:
@@ -671,9 +714,18 @@ def main():
                 imgCanvas = np.zeros((h, w, 3), np.uint8)
                 msg_status = "Canvas Limpo!"
                 msg_timer = time.time() + 2.0
-            elif key in [13, 10]:  # ENTER: Enviar
+            elif key in [13, 10]:  # ENTER: Gerar QR Code e salvar
                 estado = 2
-                timer_sucesso = time.time() + 4.0
+                timer_sucesso = time.time() + 15.0
+
+        # Estado 2: QR Code na tela
+        elif estado == 2:
+            if key in [13, 10, 32]:  # ENTER ou ESPAÇO: Avançar para o próximo aluno imediatamente
+                estado = 0
+                input_nome = ""
+                caminho_salvo_recente = ""
+                qr_img_atual = None
+                imgCanvas = np.zeros((h, w, 3), np.uint8)
 
     cap.release()
     cv2.destroyAllWindows()

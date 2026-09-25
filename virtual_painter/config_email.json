@@ -1,9 +1,0 @@
-{
-  "habilitar_envio_real": false,
-  "servidor_smtp": "smtp.gmail.com",
-  "porta_smtp": 587,
-  "email_remetente": "seu_email@gmail.com",
-  "senha_app": "sua_senha_de_app_aqui",
-  "assunto": "Sua Arte no Stand de ADS - Unimar Aberta! 🎨",
-  "mensagem_corpo": "Ola {nome}!\n\nFoi incrivel receber voce no nosso stand de ADS na Unimar Aberta!\nEm anexo esta a sua arte feita no ar usando Visao Computacional e Python (OpenCV).\n\nEsperamos ver voce em breve no curso de Analise e Desenvolvimento de Sistemas da Unimar!\n\nUm grande abraco,\nEquipe ADS Unimar"
-}

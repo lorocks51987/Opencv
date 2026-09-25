@@ -33,7 +33,7 @@ PROJETOS = [
         "id": "2",
         "titulo": "2. VIRTUAL PAINTER NEON",
         "tag": "CRIATIVIDADE & INTERATIVIDADE",
-        "desc": "Desenho no ar com gestos das maos, paleta neon, borracha e salvar obras de arte.",
+        "desc": "Desenho no ar com as maos, moldura oficial de ADS e QR Code instantaneo no celular.",
         "script": os.path.join(SCRIPT_DIR, "virtual_painter", "VirtualPainter_Arcade.py"),
         "cor": (255, 180, 0)
     },
