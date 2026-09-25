@@ -123,15 +123,38 @@ Demonstração do potencial acadêmico, social e de inclusão da Inteligência A
 
 ---
 
+### 4. 🖐️ Finger Arcade & Gesture Arena (3 Modos Interativos)
+*Localização: `finger_arcade/Finger_Arcade.py` ou `examples/countFinger.py`*
+
+Showcase de biometria de alta velocidade com contagem de 0 a 10 dedos (duas mãos simultâneas) e minigames:
+- **3 Modos de Apresentação Dedicados**:
+  - 🤖 **Modo 1 (`[F1]`): Dashboard Biométrico Sci-Fi**: HUD holográfico estilo *Minority Report* com miras nas pontas dos dedos erguidos, contagem independente (mão esquerda, mão direita e total) e reconhecimento instantâneo de gestos (Paz e Amor, Rock 'n' Roll, Hang Loose, Joinha, Coração, Palma Aberta e Punho Fechado).
+  - ⚡ **Modo 2 (`[F2]`): Math Blitz & Reação Rápida**: Desafio arcade de 45 segundos contra o relógio! A IA sorteia comandos rápidos (*"MOSTRE: 7 DEDOS!"*) ou continhas instantâneas (*"4 + 3 = ?"*). Acertos rápidos ativam combos (x1 a x5), explosão de partículas e salvam o Recorde do Stand.
+  - ✌️ **Modo 3 (`[F3]`): Jokenpô Arcade contra a IA**: Duelo clássico de Pedra, Papel e Tesoura contra o Robô de ADS! Contagem regressiva com efeitos sonoros (3... 2... 1... JÁ!), detecção de jogada, efeitos visuais de vitória/derrota e placar de vitórias consecutivas (Streak).
+
+#### ⌨️ Tabela Completa de Atalhos - Finger Arcade:
+| Tecla | Ação |
+| :--- | :--- |
+| **`[F1]`** | Ativa o **Modo 1: Dashboard Biométrico Sci-Fi** (HUD Holográfico) |
+| **`[F2]`** | Ativa o **Modo 2: Math Blitz & Reação Rápida** (Desafio de 45s) |
+| **`[F3]`** | Ativa o **Modo 3: Jokenpô contra a IA** (Pedra, Papel e Tesoura) |
+| **`[ESPAÇO]`** | Inicia duelo / próxima rodada / alterna espelhamento da câmera |
+| **`[R]`** | Reinicia imediatamente a partida do Math Blitz ou do Jokenpô |
+| **`[TAB]`** ou **`[F]`** | Alterna Modo Tela Cheia |
+| **`[ESC]`** ou **`[Q]`** | Sair do Finger Arcade |
+
+---
+
 ## 🛠️ Instalação e Execução
 
 ### 1. Inicializadores de 1 Clique (Recomendado para o Stand)
 Criamos executáveis `.bat` prontos para rodar em qualquer máquina Windows:
 - 🚀 **`INSTALAR_TUDO.bat`**: Instala e atualiza automaticamente todas as dependências com 1 clique.
-- 🎮 **`INICIAR_STAND.bat`**: Abre o Menu Launcher geral com acesso a todos os projetos.
+- 🎮 **`INICIAR_STAND.bat`**: Abre o Menu Launcher geral com acesso aos 4 projetos do stand.
 - 🐍 **`INICIAR_COBRINHA.bat`**: Inicia diretamente o Snake Donuts Arcade.
 - 🔤 **`INICIAR_LIBRAS.bat`**: Inicia diretamente a IA de LIBRAS Stand Edition.
 - 🎨 **`INICIAR_PINTOR.bat`**: Inicia diretamente o Pintor Virtual com QR Code.
+- 🖐️ **`INICIAR_CONTADOR.bat`**: Inicia diretamente o Finger Arcade & Gesture Arena.
 
 ### 2. Execução Manual via Terminal
 ```bash

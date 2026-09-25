@@ -44,12 +44,20 @@ PROJETOS = [
         "desc": "Alfabeto completo (A-Z), 3 Modos (Tela Limpa, Desafio, Soletrar no Ar) e Easter Eggs.",
         "script": os.path.join(SCRIPT_DIR, "libras", "libras_stand_edition.py"),
         "cor": (0, 215, 255)
+    },
+    {
+        "id": "4",
+        "titulo": "4. FINGER ARCADE & GESTURE ARENA",
+        "tag": "BIOMETRIA, MATH & JOKENPO",
+        "desc": "HUD Holografico (0-10 dedos), Desafio Math Blitz de 45s e Jokenpo contra a IA.",
+        "script": os.path.join(SCRIPT_DIR, "finger_arcade", "Finger_Arcade.py"),
+        "cor": (255, 120, 220)
     }
 ]
 
 def render_menu():
     largura = 1200
-    altura = 680
+    altura = 740
     tela = np.zeros((altura, largura, 3), dtype=np.uint8)
 
     # Gradiente de fundo sutil
@@ -59,7 +67,7 @@ def render_menu():
 
     # Linhas e acentos de design
     cv2.line(tela, (60, 115), (largura - 60, 115), (0, 220, 255), 2)
-    cv2.line(tela, (60, altura - 75), (largura - 60, altura - 75), (80, 80, 100), 1)
+    cv2.line(tela, (60, altura - 70), (largura - 60, altura - 70), (80, 80, 100), 1)
 
     # Topo / Header
     cv2.putText(
@@ -73,9 +81,9 @@ def render_menu():
 
     # Cards dos Projetos
     card_w = largura - 120
-    card_h = 135
-    start_y = 145
-    espacamento = 25
+    card_h = 108
+    start_y = 135
+    espacamento = 18
 
     for i, proj in enumerate(PROJETOS):
         y_pos = start_y + i * (card_h + espacamento)
@@ -89,33 +97,33 @@ def render_menu():
 
         # Título
         cv2.putText(
-            tela, proj["titulo"], (95, y_pos + 42),
-            cv2.FONT_HERSHEY_DUPLEX, 0.95, proj["cor"], 2, cv2.LINE_AA
+            tela, proj["titulo"], (95, y_pos + 38),
+            cv2.FONT_HERSHEY_DUPLEX, 0.88, proj["cor"], 2, cv2.LINE_AA
         )
 
         # Tag
         cv2.putText(
-            tela, f"[ {proj['tag']} ]", (95 + 460, y_pos + 40),
-            cv2.FONT_HERSHEY_DUPLEX, 0.55, (200, 200, 200), 1, cv2.LINE_AA
+            tela, f"[ {proj['tag']} ]", (95 + 460, y_pos + 36),
+            cv2.FONT_HERSHEY_DUPLEX, 0.52, (200, 200, 200), 1, cv2.LINE_AA
         )
 
         # Descrição
         cv2.putText(
-            tela, proj["desc"], (95, y_pos + 82),
-            cv2.FONT_HERSHEY_DUPLEX, 0.6, (220, 220, 220), 1, cv2.LINE_AA
+            tela, proj["desc"], (95, y_pos + 76),
+            cv2.FONT_HERSHEY_DUPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA
         )
 
         # Botão de Ação
         btn_txt = f"PRESSIONE [{proj['id']}]"
         cv2.putText(
-            tela, btn_txt, (60 + card_w - 240, y_pos + 85),
-            cv2.FONT_HERSHEY_DUPLEX, 0.7, proj["cor"], 2, cv2.LINE_AA
+            tela, btn_txt, (60 + card_w - 240, y_pos + 78),
+            cv2.FONT_HERSHEY_DUPLEX, 0.68, proj["cor"], 2, cv2.LINE_AA
         )
 
     # Rodapé / Instruções
     cv2.putText(
-        tela, "Pressione [1, 2 ou 3] no teclado para iniciar  |  [Q ou ESC] para fechar",
-        (largura // 2 - 380, altura - 35),
+        tela, "Pressione [1, 2, 3 ou 4] no teclado para iniciar  |  [Q ou ESC] para fechar",
+        (largura // 2 - 400, altura - 30),
         cv2.FONT_HERSHEY_DUPLEX, 0.65, (255, 255, 255), 1, cv2.LINE_AA
     )
 
@@ -151,6 +159,9 @@ def main():
             cv2.namedWindow(nome_janela, cv2.WINDOW_NORMAL)
         elif key == ord('3'):
             executar_projeto(PROJETOS[2]["script"])
+            cv2.namedWindow(nome_janela, cv2.WINDOW_NORMAL)
+        elif key == ord('4'):
+            executar_projeto(PROJETOS[3]["script"])
             cv2.namedWindow(nome_janela, cv2.WINDOW_NORMAL)
 
     cv2.destroyAllWindows()
